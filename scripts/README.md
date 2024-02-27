@@ -8,7 +8,9 @@ This script will deploy a given sam stack. Usage example:
 
 ```
 ./deploy-sam-stack.sh \
-    --account development
-    --stack-name onboarding-infrastructure-component-name
-    --base-dir infrastructure/component-name
+    --account build \
+    --build \
+    --stack-name onboarding-infrastructure-component-stack-name \
+    --base-dir infrastructure/component \
+    --template infrastructure/component/template.yml
 ```
