@@ -92,7 +92,7 @@ ${DISABLE_ROLLBACK:-false} && DISABLE_ROLLBACK_OPTION="--disable-rollback"
 
 [[ $(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[].StackStatus" \
   --output text 2> /dev/null) == ROLLBACK_COMPLETE ]] && ${DELETE_ON_FAILED_CREATION:-true} &&
-  sam delete --no-prompts --region "${AWS_REGION:-${AWS_DEFAULT_REGION}}" --stack-name "$STACK_NAME"
+  sam delete --no-prompts --stack-name "$STACK_NAME"
 
 sam deploy \
   ${STACK_NAME:+--stack-name "$STACK_NAME"} \
