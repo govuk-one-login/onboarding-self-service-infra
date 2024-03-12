@@ -1,0 +1,80 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Onboarding self service team security hub findings monitoring
+
+Parameters:
+  NotificationsStack:
+    Type: String
+    Description: "The stack name for the stack that contains the alert notification resources"
+    Default: onboarding-infrastructure-monitoring-alert-notifications
+  EnableAlerting:
+    Description: "Whether to enable alerting for Security Hub events"
+    Type: String
+    AllowedValues: [ true, false ]
+    Default: true
+
+Conditions:
+  IsAlerting: !Equals [true, !Ref EnableAlerting]
+
+Resources:
+  SecurityFindingsEventRule:
+    Type: AWS::Events::Rule
+    Condition: IsAlerting
+    Properties:
+      Description: "SecurityFindingsEventRule"
+      EventPattern:
+        source: [ "aws.securityhub" ]
+        detail-type: [ "Security Hub Findings - Imported" ]
+        detail:
+          findings:
+            AwsAccountId: [ !Ref AWS::AccountId ]
+            Compliance:
+              Status: [ "FAILED", "WARNING" ]
+            RecordState: [ "ACTIVE" ]
+            Severity:
+              Label: [ "HIGH", "CRITICAL" ]
+      State: !If [ IsAlerting, "ENABLED", "DISABLED" ]
+      Targets:
+        - Arn: !GetAtt EventRuleLogsGroup.Arn
+          Id: "OnboardingSecurityFindingsLogRule"
+        - Arn:
+            Fn::ImportValue:
+              !Sub "${NotificationsStack}-sns-topic-arn"
+          Id: "OnboardingSecurityFindingsSnsRule"
+          InputTransformer:
+            InputPathsMap:
+              account: $.detail.findings[0].AwsAccountId
+              finding: $.detail.findings[0].Title
+              severity: $.detail.findings[0].Severity.Label
+              resource_type: $.detail.findings[0].Resources[0].Type
+              resource_id: $.detail.findings[0].Resources[0].Id
+            InputTemplate: |
+              {
+                "Application" : "Security Hub Alerts",
+                "Heading" : "<finding>",
+                "Message" : "Security Hub has found an issue with the resource <resource_type>: *<resource_id>*",
+                "Context" : "AWS account: <account> (<severity>)",
+                "Colour" : "Red"
+              }
+
+
+  EventRuleLogsGroup:
+    # checkov:skip=CKV_AWS_158:Ensure that CloudWatch Log Group is encrypted by KMS
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: '/aws/events/onboarding-infrastructure/monitoring/security-findings'
+      RetentionInDays: 14
+
+  SecurityEventPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sns:Publish
+            Resource: "*"
+      Topics:
+        - Fn::ImportValue:
+            !Sub "${NotificationsStack}-sns-topic-arn"

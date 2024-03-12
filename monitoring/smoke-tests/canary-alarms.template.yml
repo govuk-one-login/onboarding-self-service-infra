@@ -13,15 +13,45 @@ Parameters:
     AllowedValues: [ true, false ]
     Default: true
 
+Mappings:
+  Account:
+    "494650018671": # Development account
+      canarySuffix: dev-health
+      alarmSuffix: DevelopmentHealth
+      productPagesEndpoint: 'https://development.sign-in.service.gov.uk/'
+      selfServiceEndpoint: 'https://admin.development.sign-in.service.gov.uk/'
+    "399055180839": # Build account
+      canarySuffix: build-health
+      alarmSuffix: BuildHealth
+      productPagesEndpoint: 'https://build.sign-in.service.gov.uk/'
+      selfServiceEndpoint: 'https://admin.build.sign-in.service.gov.uk/'
+    "325730373996": # Staging account
+      canarySuffix: staging-health
+      alarmSuffix: StagingHealth
+      productPagesEndpoint: 'https://staging.sign-in.service.gov.uk/'
+      selfServiceEndpoint: 'https://admin.staging.sign-in.service.gov.uk/'
+    "663985455444": # Integration account, monitors production endpoints
+      canarySuffix: prod-health
+      alarmSuffix: ProductionHealth
+      productPagesEndpoint: 'https://www.sign-in.service.gov.uk/'
+      selfServiceEndpoint: 'https://admin.sign-in.service.gov.uk/'
+    "389946456390": # Production account, monitors integration endpoints
+      canarySuffix: int-health
+      alarmSuffix: IntegrationHealth
+      productPagesEndpoint: 'https://integration.sign-in.service.gov.uk/'
+      selfServiceEndpoint: 'https://admin.integration.sign-in.service.gov.uk/'
+
 Conditions:
   IsAlerting: !Equals [true, !Ref EnableAlerting]
 
 Resources:
-  ## PRODUCT PAGES - PRODUCTION HEALTH
-  ProductPagesProductionCanary:
+  ## PRODUCT PAGES - HEALTH
+  ProductPagesCanary:
     Type: AWS::Synthetics::Canary
     Properties:
-      Name: pp-prod-health
+      Name: !Sub
+        - pp-${CanarySuffix}
+        - CanarySuffix: !FindInMap [ Account, !Ref AWS::AccountId, canarySuffix ]
       ArtifactS3Location:
         !Sub
           - "s3://${Bucket}"
@@ -32,109 +62,111 @@ Resources:
       FailureRetentionPeriod: 5
       Code:
         Handler: index.handler
-        Script: |
-          const { URL } = require('url');
-          const synthetics = require('Synthetics');
-          const log = require('SyntheticsLogger');
-          const syntheticsConfiguration = synthetics.getConfiguration();
-          const syntheticsLogHelper = require('SyntheticsLogHelper');
-          
-          const loadBlueprint = async function () {
-          
-              const urls = ['https://sign-in.service.gov.uk'];
-          
-              // Set screenshot option
-              const takeScreenshot = true;
-          
-              /* Disabling default step screen shots taken during Synthetics.executeStep() calls
-               * Step will be used to publish metrics on time taken to load dom content but
-               * Screenshots will be taken outside the executeStep to allow for page to completely load with domcontentloaded
-               * You can change it to load, networkidle0, networkidle2 depending on what works best for you.
-               */
-              syntheticsConfiguration.disableStepScreenshots();
-              syntheticsConfiguration.setConfig({
-                  continueOnStepFailure: true,
-                  includeRequestHeaders: true, // Enable if headers should be displayed in HAR
-                  includeResponseHeaders: true, // Enable if headers should be displayed in HAR
-                  restrictedHeaders: [], // Value of these headers will be redacted from logs and reports
-                  restrictedUrlParameters: [] // Values of these url parameters will be redacted from logs and reports
-          
-              });
-          
-              let page = await synthetics.getPage();
-          
-              for (const url of urls) {
-                  await loadUrl(page, url, takeScreenshot);
-              }
-          };
-          
-          // Reset the page in-between
-          const resetPage = async function(page) {
-              try {
-                  await page.goto('about:blank',{waitUntil: ['load', 'networkidle0'], timeout: 30000} );
-              } catch (e) {
-                  synthetics.addExecutionError('Unable to open a blank page. ', e);
-              }
-          }
-          
-          const loadUrl = async function (page, url, takeScreenshot) {
-              let stepName = null;
-              let domcontentloaded = false;
-          
-              try {
-                  stepName = new URL(url).hostname;
-              } catch (e) {
-                  const errorString = `Error parsing url: ${url}. ${e}`;
-                  log.error(errorString);
-                  /* If we fail to parse the URL, don't emit a metric with a stepName based on it.
-                     It may not be a legal CloudWatch metric dimension name and we may not have an alarms
-                     setup on the malformed URL stepName.  Instead, fail this step which will
-                     show up in the logs and will fail the overall canary and alarm on the overall canary
-                     success rate.
-                  */
-                  throw e;
-              }
-          
-              await synthetics.executeStep(stepName, async function () {
-                  const sanitizedUrl = syntheticsLogHelper.getSanitizedUrl(url);
-          
-                  /* You can customize the wait condition here. For instance, using 'networkidle2' or 'networkidle0' to load page completely.
-                     networkidle0: Navigation is successful when the page has had no network requests for half a second. This might never happen if page is constantly loading multiple resources.
-                     networkidle2: Navigation is successful when the page has no more then 2 network requests for half a second.
-                     domcontentloaded: It's fired as soon as the page DOM has been loaded, without waiting for resources to finish loading. If needed add explicit wait with await new Promise(r => setTimeout(r, milliseconds))
-                  */
-                  const response = await page.goto(url, { waitUntil: ['domcontentloaded'], timeout: 30000});
-                  if (response) {
-                      domcontentloaded = true;
-                      const status = response.status();
-                      const statusText = response.statusText();
-          
-                      logResponseString = `Response from url: ${sanitizedUrl}  Status: ${status}  Status Text: ${statusText}`;
-          
-                      //If the response status code is not a 2xx success code
-                      if (response.status() < 200 || response.status() > 299) {
-                          throw new Error(`Failed to load url: ${sanitizedUrl} ${response.status()} ${response.statusText()}`);
-                      }
-                  } else {
-                      const logNoResponseString = `No response returned for url: ${sanitizedUrl}`;
-                      log.error(logNoResponseString);
-                      throw new Error(logNoResponseString);
-                  }
-              });
-          
-              // Wait for 15 seconds to let page load fully before taking screenshot.
-              if (domcontentloaded && takeScreenshot) {
-                  await new Promise(r => setTimeout(r, 15000));
-                  await synthetics.takeScreenshot(stepName, 'loaded');
-              }
-          
-              // Reset page
-              await resetPage(page);
-          };
-          
-          exports.handler = async () => {
-              return await loadBlueprint();
-          };
+        Script: !Sub
+          - |
+            const { URL } = require('url');
+            const synthetics = require('Synthetics');
+            const log = require('SyntheticsLogger');
+            const syntheticsConfiguration = synthetics.getConfiguration();
+            const syntheticsLogHelper = require('SyntheticsLogHelper');
+            
+            const loadBlueprint = async function () {
+            
+                const urls = ['${EndpointUrl}'];
+            
+                // Set screenshot option
+                const takeScreenshot = true;
+            
+                /* Disabling default step screen shots taken during Synthetics.executeStep() calls
+                 * Step will be used to publish metrics on time taken to load dom content but
+                 * Screenshots will be taken outside the executeStep to allow for page to completely load with domcontentloaded
+                 * You can change it to load, networkidle0, networkidle2 depending on what works best for you.
+                 */
+                syntheticsConfiguration.disableStepScreenshots();
+                syntheticsConfiguration.setConfig({
+                    continueOnStepFailure: true,
+                    includeRequestHeaders: true, // Enable if headers should be displayed in HAR
+                    includeResponseHeaders: true, // Enable if headers should be displayed in HAR
+                    restrictedHeaders: [], // Value of these headers will be redacted from logs and reports
+                    restrictedUrlParameters: [] // Values of these url parameters will be redacted from logs and reports
+            
+                });
+            
+                let page = await synthetics.getPage();
+            
+                for (const url of urls) {
+                    await loadUrl(page, url, takeScreenshot);
+                }
+            };
+            
+            // Reset the page in-between
+            const resetPage = async function(page) {
+                try {
+                    await page.goto('about:blank',{waitUntil: ['load', 'networkidle0'], timeout: 30000} );
+                } catch (e) {
+                    synthetics.addExecutionError('Unable to open a blank page. ', e);
+                }
+            }
+            
+            const loadUrl = async function (page, url, takeScreenshot) {
+                let stepName = null;
+                let domcontentloaded = false;
+            
+                try {
+                    stepName = new URL(url).hostname;
+                } catch (e) {
+                    const errorString = `Error parsing url: ${!url}. ${!e}`;
+                    log.error(errorString);
+                    /* If we fail to parse the URL, don't emit a metric with a stepName based on it.
+                       It may not be a legal CloudWatch metric dimension name and we may not have an alarms
+                       setup on the malformed URL stepName.  Instead, fail this step which will
+                       show up in the logs and will fail the overall canary and alarm on the overall canary
+                       success rate.
+                    */
+                    throw e;
+                }
+            
+                await synthetics.executeStep(stepName, async function () {
+                    const sanitizedUrl = syntheticsLogHelper.getSanitizedUrl(url);
+            
+                    /* You can customize the wait condition here. For instance, using 'networkidle2' or 'networkidle0' to load page completely.
+                       networkidle0: Navigation is successful when the page has had no network requests for half a second. This might never happen if page is constantly loading multiple resources.
+                       networkidle2: Navigation is successful when the page has no more then 2 network requests for half a second.
+                       domcontentloaded: It's fired as soon as the page DOM has been loaded, without waiting for resources to finish loading. If needed add explicit wait with await new Promise(r => setTimeout(r, milliseconds))
+                    */
+                    const response = await page.goto(url, { waitUntil: ['domcontentloaded'], timeout: 30000});
+                    if (response) {
+                        domcontentloaded = true;
+                        const status = response.status();
+                        const statusText = response.statusText();
+            
+                        logResponseString = `Response from url: ${!sanitizedUrl}  Status: ${!status}  Status Text: ${!statusText}`;
+            
+                        //If the response status code is not a 2xx success code
+                        if (response.status() < 200 || response.status() > 299) {
+                            throw new Error(`Failed to load url: ${!sanitizedUrl} ${!response.status()} ${!response.statusText()}`);
+                        }
+                    } else {
+                        const logNoResponseString = `No response returned for url: ${!sanitizedUrl}`;
+                        log.error(logNoResponseString);
+                        throw new Error(logNoResponseString);
+                    }
+                });
+            
+                // Wait for 15 seconds to let page load fully before taking screenshot.
+                if (domcontentloaded && takeScreenshot) {
+                    await new Promise(r => setTimeout(r, 15000));
+                    await synthetics.takeScreenshot(stepName, 'loaded');
+                }
+            
+                // Reset page
+                await resetPage(page);
+            };
+            
+            exports.handler = async () => {
+                return await loadBlueprint();
+            };
+          - EndpointUrl: !FindInMap [ Account, !Ref AWS::AccountId, productPagesEndpoint ]
       ExecutionRoleArn:
         Fn::ImportValue:
           !Sub "${SmokeStack}-canary-role"
@@ -145,13 +177,15 @@ Resources:
         Expression: rate(1 minute)
       StartCanaryAfterCreation: true
 
-  ProductPagesProductionCanaryAlarm:
+  ProductPagesCanaryAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
       # The alarm name is used by lambda to determine the sending origin
       # and should be changed with caution.
-      AlarmName: "OnboardingProductPagesProductionHealth"
-      AlarmDescription: "Product page (production) canary: 1 failure in the last 5 minutes"
+      AlarmName: !Sub
+        - OnboardingProductPages${AlarmSuffix}
+        - AlarmSuffix: !FindInMap [ Account, !Ref AWS::AccountId, alarmSuffix ]
+      AlarmDescription: "Product page canary: 1 failure in the last 5 minutes"
       AlarmActions:
         - !If
           - IsAlerting
@@ -178,14 +212,16 @@ Resources:
       Namespace: CloudWatchSynthetics
       Dimensions:
         - Name: CanaryName
-          Value: !Ref ProductPagesProductionCanary
+          Value: !Ref ProductPagesCanary
 
 
-  ## PRODUCT PAGES - INTEGRATION HEALTH
-  ProductPagesIntegrationCanary:
+  ## SELF-SERVICE - HEALTHCHECK
+  SelfServiceCanary:
     Type: AWS::Synthetics::Canary
     Properties:
-      Name: pp-int-health
+      Name: !Sub
+        - sse-${CanarySuffix}
+        - CanarySuffix: !FindInMap [ Account, !Ref AWS::AccountId, canarySuffix ]
       ArtifactS3Location:
         !Sub
         - "s3://${Bucket}"
@@ -196,109 +232,111 @@ Resources:
       FailureRetentionPeriod: 5
       Code:
         Handler: index.handler
-        Script: |
-          const { URL } = require('url');
-          const synthetics = require('Synthetics');
-          const log = require('SyntheticsLogger');
-          const syntheticsConfiguration = synthetics.getConfiguration();
-          const syntheticsLogHelper = require('SyntheticsLogHelper');
-
-          const loadBlueprint = async function () {
-
-              const urls = ['https://integration.sign-in.service.gov.uk'];
-
-              // Set screenshot option
-              const takeScreenshot = true;
-
-              /* Disabling default step screen shots taken during Synthetics.executeStep() calls
-               * Step will be used to publish metrics on time taken to load dom content but
-               * Screenshots will be taken outside the executeStep to allow for page to completely load with domcontentloaded
-               * You can change it to load, networkidle0, networkidle2 depending on what works best for you.
-               */
-              syntheticsConfiguration.disableStepScreenshots();
-              syntheticsConfiguration.setConfig({
-                  continueOnStepFailure: true,
-                  includeRequestHeaders: true, // Enable if headers should be displayed in HAR
-                  includeResponseHeaders: true, // Enable if headers should be displayed in HAR
-                  restrictedHeaders: [], // Value of these headers will be redacted from logs and reports
-                  restrictedUrlParameters: [] // Values of these url parameters will be redacted from logs and reports
-
-              });
-
-              let page = await synthetics.getPage();
-
-              for (const url of urls) {
-                  await loadUrl(page, url, takeScreenshot);
-              }
-          };
-
-          // Reset the page in-between
-          const resetPage = async function(page) {
-              try {
-                  await page.goto('about:blank',{waitUntil: ['load', 'networkidle0'], timeout: 30000} );
-              } catch (e) {
-                  synthetics.addExecutionError('Unable to open a blank page. ', e);
-              }
-          }
-
-          const loadUrl = async function (page, url, takeScreenshot) {
-              let stepName = null;
-              let domcontentloaded = false;
-
-              try {
-                  stepName = new URL(url).hostname;
-              } catch (e) {
-                  const errorString = `Error parsing url: ${url}. ${e}`;
-                  log.error(errorString);
-                  /* If we fail to parse the URL, don't emit a metric with a stepName based on it.
-                     It may not be a legal CloudWatch metric dimension name and we may not have an alarms
-                     setup on the malformed URL stepName.  Instead, fail this step which will
-                     show up in the logs and will fail the overall canary and alarm on the overall canary
-                     success rate.
-                  */
-                  throw e;
-              }
-
-              await synthetics.executeStep(stepName, async function () {
-                  const sanitizedUrl = syntheticsLogHelper.getSanitizedUrl(url);
-
-                  /* You can customize the wait condition here. For instance, using 'networkidle2' or 'networkidle0' to load page completely.
-                     networkidle0: Navigation is successful when the page has had no network requests for half a second. This might never happen if page is constantly loading multiple resources.
-                     networkidle2: Navigation is successful when the page has no more then 2 network requests for half a second.
-                     domcontentloaded: It's fired as soon as the page DOM has been loaded, without waiting for resources to finish loading. If needed add explicit wait with await new Promise(r => setTimeout(r, milliseconds))
-                  */
-                  const response = await page.goto(url, { waitUntil: ['domcontentloaded'], timeout: 30000});
-                  if (response) {
-                      domcontentloaded = true;
-                      const status = response.status();
-                      const statusText = response.statusText();
-
-                      logResponseString = `Response from url: ${sanitizedUrl}  Status: ${status}  Status Text: ${statusText}`;
-
-                      //If the response status code is not a 2xx success code
-                      if (response.status() < 200 || response.status() > 299) {
-                          throw new Error(`Failed to load url: ${sanitizedUrl} ${response.status()} ${response.statusText()}`);
-                      }
-                  } else {
-                      const logNoResponseString = `No response returned for url: ${sanitizedUrl}`;
-                      log.error(logNoResponseString);
-                      throw new Error(logNoResponseString);
-                  }
-              });
-
-              // Wait for 15 seconds to let page load fully before taking screenshot.
-              if (domcontentloaded && takeScreenshot) {
-                  await new Promise(r => setTimeout(r, 15000));
-                  await synthetics.takeScreenshot(stepName, 'loaded');
-              }
-
-              // Reset page
-              await resetPage(page);
-          };
-
-          exports.handler = async () => {
-              return await loadBlueprint();
-          };
+        Script: !Sub
+          - |
+            const { URL } = require('url');
+            const synthetics = require('Synthetics');
+            const log = require('SyntheticsLogger');
+            const syntheticsConfiguration = synthetics.getConfiguration();
+            const syntheticsLogHelper = require('SyntheticsLogHelper');
+            
+            const loadBlueprint = async function () {
+            
+                const urls = ['${EndpointUrl}'];
+            
+                // Set screenshot option
+                const takeScreenshot = true;
+            
+                /* Disabling default step screen shots taken during Synthetics.executeStep() calls
+                 * Step will be used to publish metrics on time taken to load dom content but
+                 * Screenshots will be taken outside the executeStep to allow for page to completely load with domcontentloaded
+                 * You can change it to load, networkidle0, networkidle2 depending on what works best for you.
+                 */
+                syntheticsConfiguration.disableStepScreenshots();
+                syntheticsConfiguration.setConfig({
+                    continueOnStepFailure: true,
+                    includeRequestHeaders: true, // Enable if headers should be displayed in HAR
+                    includeResponseHeaders: true, // Enable if headers should be displayed in HAR
+                    restrictedHeaders: [], // Value of these headers will be redacted from logs and reports
+                    restrictedUrlParameters: [] // Values of these url parameters will be redacted from logs and reports
+            
+                });
+            
+                let page = await synthetics.getPage();
+            
+                for (const url of urls) {
+                    await loadUrl(page, url, takeScreenshot);
+                }
+            };
+            
+            // Reset the page in-between
+            const resetPage = async function(page) {
+                try {
+                    await page.goto('about:blank',{waitUntil: ['load', 'networkidle0'], timeout: 30000} );
+                } catch (e) {
+                    synthetics.addExecutionError('Unable to open a blank page. ', e);
+                }
+            }
+            
+            const loadUrl = async function (page, url, takeScreenshot) {
+                let stepName = null;
+                let domcontentloaded = false;
+            
+                try {
+                    stepName = new URL(url).hostname;
+                } catch (e) {
+                    const errorString = `Error parsing url: ${!url}. ${!e}`;
+                    log.error(errorString);
+                    /* If we fail to parse the URL, don't emit a metric with a stepName based on it.
+                       It may not be a legal CloudWatch metric dimension name and we may not have an alarms
+                       setup on the malformed URL stepName.  Instead, fail this step which will
+                       show up in the logs and will fail the overall canary and alarm on the overall canary
+                       success rate.
+                    */
+                    throw e;
+                }
+            
+                await synthetics.executeStep(stepName, async function () {
+                    const sanitizedUrl = syntheticsLogHelper.getSanitizedUrl(url);
+            
+                    /* You can customize the wait condition here. For instance, using 'networkidle2' or 'networkidle0' to load page completely.
+                       networkidle0: Navigation is successful when the page has had no network requests for half a second. This might never happen if page is constantly loading multiple resources.
+                       networkidle2: Navigation is successful when the page has no more then 2 network requests for half a second.
+                       domcontentloaded: It's fired as soon as the page DOM has been loaded, without waiting for resources to finish loading. If needed add explicit wait with await new Promise(r => setTimeout(r, milliseconds))
+                    */
+                    const response = await page.goto(url, { waitUntil: ['domcontentloaded'], timeout: 30000});
+                    if (response) {
+                        domcontentloaded = true;
+                        const status = response.status();
+                        const statusText = response.statusText();
+            
+                        logResponseString = `Response from url: ${!sanitizedUrl}  Status: ${!status}  Status Text: ${!statusText}`;
+            
+                        //If the response status code is not a 2xx success code
+                        if (response.status() < 200 || response.status() > 299) {
+                            throw new Error(`Failed to load url: ${!sanitizedUrl} ${!response.status()} ${!response.statusText()}`);
+                        }
+                    } else {
+                        const logNoResponseString = `No response returned for url: ${!sanitizedUrl}`;
+                        log.error(logNoResponseString);
+                        throw new Error(logNoResponseString);
+                    }
+                });
+            
+                // Wait for 15 seconds to let page load fully before taking screenshot.
+                if (domcontentloaded && takeScreenshot) {
+                    await new Promise(r => setTimeout(r, 15000));
+                    await synthetics.takeScreenshot(stepName, 'loaded');
+                }
+            
+                // Reset page
+                await resetPage(page);
+            };
+            
+            exports.handler = async () => {
+                return await loadBlueprint();
+            };
+          - EndpointUrl: !FindInMap [ Account, !Ref AWS::AccountId, productPagesEndpoint ]
       ExecutionRoleArn:
         Fn::ImportValue:
           !Sub "${SmokeStack}-canary-role"
@@ -309,13 +347,15 @@ Resources:
         Expression: rate(1 minute)
       StartCanaryAfterCreation: true
 
-  ProductPagesIntegrationCanaryAlarm:
+  SelfServiceCanaryAlarm:
     Type: AWS::CloudWatch::Alarm
     Properties:
       # The alarm name is used by lambda to determine the sending origin
       # and should be changed with caution.
-      AlarmName: "OnboardingProductPagesIntegrationHealth"
-      AlarmDescription: "Product page (integration) canary: 1 failure in the last 5 minutes"
+      AlarmName: !Sub
+        - OnboardingSelfService${AlarmSuffix}
+        - AlarmSuffix: !FindInMap [ Account, !Ref AWS::AccountId, alarmSuffix ]
+      AlarmDescription: "Self-service canary: 1 failure in the last 5 minutes"
       AlarmActions:
         - !If
           - IsAlerting
@@ -342,332 +382,5 @@ Resources:
       Namespace: CloudWatchSynthetics
       Dimensions:
         - Name: CanaryName
-          Value: !Ref ProductPagesIntegrationCanary
+          Value: !Ref SelfServiceCanary
 
-
-  ## SELF-SERVICE - PRODUCTION HEALTH
-  SelfServiceProductionCanary:
-    Type: AWS::Synthetics::Canary
-    Properties:
-      Name: sse-prod-health
-      ArtifactS3Location:
-        !Sub
-        - "s3://${Bucket}"
-        - Bucket:
-            Fn::ImportValue:
-              !Sub "${SmokeStack}-artifact-bucket"
-      SuccessRetentionPeriod: 1
-      FailureRetentionPeriod: 5
-      Code:
-        Handler: index.handler
-        Script: |
-          const { URL } = require('url');
-          const synthetics = require('Synthetics');
-          const log = require('SyntheticsLogger');
-          const syntheticsConfiguration = synthetics.getConfiguration();
-          const syntheticsLogHelper = require('SyntheticsLogHelper');
-
-          const loadBlueprint = async function () {
-
-              const urls = ['https://admin.sign-in.service.gov.uk'];
-
-              // Set screenshot option
-              const takeScreenshot = true;
-
-              /* Disabling default step screen shots taken during Synthetics.executeStep() calls
-               * Step will be used to publish metrics on time taken to load dom content but
-               * Screenshots will be taken outside the executeStep to allow for page to completely load with domcontentloaded
-               * You can change it to load, networkidle0, networkidle2 depending on what works best for you.
-               */
-              syntheticsConfiguration.disableStepScreenshots();
-              syntheticsConfiguration.setConfig({
-                  continueOnStepFailure: true,
-                  includeRequestHeaders: true, // Enable if headers should be displayed in HAR
-                  includeResponseHeaders: true, // Enable if headers should be displayed in HAR
-                  restrictedHeaders: [], // Value of these headers will be redacted from logs and reports
-                  restrictedUrlParameters: [] // Values of these url parameters will be redacted from logs and reports
-
-              });
-
-              let page = await synthetics.getPage();
-
-              for (const url of urls) {
-                  await loadUrl(page, url, takeScreenshot);
-              }
-          };
-
-          // Reset the page in-between
-          const resetPage = async function(page) {
-              try {
-                  await page.goto('about:blank',{waitUntil: ['load', 'networkidle0'], timeout: 30000} );
-              } catch (e) {
-                  synthetics.addExecutionError('Unable to open a blank page. ', e);
-              }
-          }
-
-          const loadUrl = async function (page, url, takeScreenshot) {
-              let stepName = null;
-              let domcontentloaded = false;
-
-              try {
-                  stepName = new URL(url).hostname;
-              } catch (e) {
-                  const errorString = `Error parsing url: ${url}. ${e}`;
-                  log.error(errorString);
-                  /* If we fail to parse the URL, don't emit a metric with a stepName based on it.
-                     It may not be a legal CloudWatch metric dimension name and we may not have an alarms
-                     setup on the malformed URL stepName.  Instead, fail this step which will
-                     show up in the logs and will fail the overall canary and alarm on the overall canary
-                     success rate.
-                  */
-                  throw e;
-              }
-
-              await synthetics.executeStep(stepName, async function () {
-                  const sanitizedUrl = syntheticsLogHelper.getSanitizedUrl(url);
-
-                  /* You can customize the wait condition here. For instance, using 'networkidle2' or 'networkidle0' to load page completely.
-                     networkidle0: Navigation is successful when the page has had no network requests for half a second. This might never happen if page is constantly loading multiple resources.
-                     networkidle2: Navigation is successful when the page has no more then 2 network requests for half a second.
-                     domcontentloaded: It's fired as soon as the page DOM has been loaded, without waiting for resources to finish loading. If needed add explicit wait with await new Promise(r => setTimeout(r, milliseconds))
-                  */
-                  const response = await page.goto(url, { waitUntil: ['domcontentloaded'], timeout: 30000});
-                  if (response) {
-                      domcontentloaded = true;
-                      const status = response.status();
-                      const statusText = response.statusText();
-
-                      logResponseString = `Response from url: ${sanitizedUrl}  Status: ${status}  Status Text: ${statusText}`;
-
-                      //If the response status code is not a 2xx success code
-                      if (response.status() < 200 || response.status() > 299) {
-                          throw new Error(`Failed to load url: ${sanitizedUrl} ${response.status()} ${response.statusText()}`);
-                      }
-                  } else {
-                      const logNoResponseString = `No response returned for url: ${sanitizedUrl}`;
-                      log.error(logNoResponseString);
-                      throw new Error(logNoResponseString);
-                  }
-              });
-
-              // Wait for 15 seconds to let page load fully before taking screenshot.
-              if (domcontentloaded && takeScreenshot) {
-                  await new Promise(r => setTimeout(r, 15000));
-                  await synthetics.takeScreenshot(stepName, 'loaded');
-              }
-
-              // Reset page
-              await resetPage(page);
-          };
-
-          exports.handler = async () => {
-              return await loadBlueprint();
-          };
-
-      ExecutionRoleArn:
-        Fn::ImportValue:
-          !Sub "${SmokeStack}-canary-role"
-      RuntimeVersion: syn-nodejs-puppeteer-6.2
-      RunConfig:
-        TimeoutInSeconds: 60
-      Schedule:
-        Expression: rate(1 minute)
-      StartCanaryAfterCreation: true
-
-  SelfServiceProductionCanaryAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      # The alarm name is used by lambda to determine the sending origin
-      # and should be changed with caution.
-      AlarmName: "OnboardingSelfServiceProductionHealth"
-      AlarmDescription: "Self service (production) canary: 1 failure in the last 5 minutes"
-      AlarmActions:
-        - !If
-          - IsAlerting
-          - Fn::ImportValue:
-              !Sub "${SmokeStack}-sns-topic"
-          - !Ref AWS::NoValue
-      OKActions:
-        - !If
-          - IsAlerting
-          - Fn::ImportValue:
-              !Sub "${SmokeStack}-sns-topic"
-          - !Ref AWS::NoValue
-
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      Statistic: Sum
-      Threshold: 1
-      Period: 300
-      EvaluationPeriods: 1
-      # The metric is only reported when a test fails,
-      # so missing data means the tests are not failing.
-      TreatMissingData: notBreaching
-
-      MetricName: Failed
-      Namespace: CloudWatchSynthetics
-      Dimensions:
-        - Name: CanaryName
-          Value: !Ref SelfServiceProductionCanary
-
-  ## SELF-SERVICE - INTEGRATION HEALTH
-  SelfServiceIntegrationCanary:
-    Type: AWS::Synthetics::Canary
-    Properties:
-      Name: sse-int-health
-      ArtifactS3Location:
-        !Sub
-        - "s3://${Bucket}"
-        - Bucket:
-            Fn::ImportValue:
-              !Sub "${SmokeStack}-artifact-bucket"
-      SuccessRetentionPeriod: 1
-      FailureRetentionPeriod: 5
-      Code:
-        Handler: index.handler
-        Script: |
-          const { URL } = require('url');
-          const synthetics = require('Synthetics');
-          const log = require('SyntheticsLogger');
-          const syntheticsConfiguration = synthetics.getConfiguration();
-          const syntheticsLogHelper = require('SyntheticsLogHelper');
-
-          const loadBlueprint = async function () {
-
-              const urls = ['https://admin.integration.sign-in.service.gov.uk'];
-
-              // Set screenshot option
-              const takeScreenshot = true;
-
-              /* Disabling default step screen shots taken during Synthetics.executeStep() calls
-               * Step will be used to publish metrics on time taken to load dom content but
-               * Screenshots will be taken outside the executeStep to allow for page to completely load with domcontentloaded
-               * You can change it to load, networkidle0, networkidle2 depending on what works best for you.
-               */
-              syntheticsConfiguration.disableStepScreenshots();
-              syntheticsConfiguration.setConfig({
-                  continueOnStepFailure: true,
-                  includeRequestHeaders: true, // Enable if headers should be displayed in HAR
-                  includeResponseHeaders: true, // Enable if headers should be displayed in HAR
-                  restrictedHeaders: [], // Value of these headers will be redacted from logs and reports
-                  restrictedUrlParameters: [] // Values of these url parameters will be redacted from logs and reports
-
-              });
-
-              let page = await synthetics.getPage();
-
-              for (const url of urls) {
-                  await loadUrl(page, url, takeScreenshot);
-              }
-          };
-
-          // Reset the page in-between
-          const resetPage = async function(page) {
-              try {
-                  await page.goto('about:blank',{waitUntil: ['load', 'networkidle0'], timeout: 30000} );
-              } catch (e) {
-                  synthetics.addExecutionError('Unable to open a blank page. ', e);
-              }
-          }
-
-          const loadUrl = async function (page, url, takeScreenshot) {
-              let stepName = null;
-              let domcontentloaded = false;
-
-              try {
-                  stepName = new URL(url).hostname;
-              } catch (e) {
-                  const errorString = `Error parsing url: ${url}. ${e}`;
-                  log.error(errorString);
-                  /* If we fail to parse the URL, don't emit a metric with a stepName based on it.
-                     It may not be a legal CloudWatch metric dimension name and we may not have an alarms
-                     setup on the malformed URL stepName.  Instead, fail this step which will
-                     show up in the logs and will fail the overall canary and alarm on the overall canary
-                     success rate.
-                  */
-                  throw e;
-              }
-
-              await synthetics.executeStep(stepName, async function () {
-                  const sanitizedUrl = syntheticsLogHelper.getSanitizedUrl(url);
-
-                  /* You can customize the wait condition here. For instance, using 'networkidle2' or 'networkidle0' to load page completely.
-                     networkidle0: Navigation is successful when the page has had no network requests for half a second. This might never happen if page is constantly loading multiple resources.
-                     networkidle2: Navigation is successful when the page has no more then 2 network requests for half a second.
-                     domcontentloaded: It's fired as soon as the page DOM has been loaded, without waiting for resources to finish loading. If needed add explicit wait with await new Promise(r => setTimeout(r, milliseconds))
-                  */
-                  const response = await page.goto(url, { waitUntil: ['domcontentloaded'], timeout: 30000});
-                  if (response) {
-                      domcontentloaded = true;
-                      const status = response.status();
-                      const statusText = response.statusText();
-
-                      logResponseString = `Response from url: ${sanitizedUrl}  Status: ${status}  Status Text: ${statusText}`;
-
-                      //If the response status code is not a 2xx success code
-                      if (response.status() < 200 || response.status() > 299) {
-                          throw new Error(`Failed to load url: ${sanitizedUrl} ${response.status()} ${response.statusText()}`);
-                      }
-                  } else {
-                      const logNoResponseString = `No response returned for url: ${sanitizedUrl}`;
-                      log.error(logNoResponseString);
-                      throw new Error(logNoResponseString);
-                  }
-              });
-
-              // Wait for 15 seconds to let page load fully before taking screenshot.
-              if (domcontentloaded && takeScreenshot) {
-                  await new Promise(r => setTimeout(r, 15000));
-                  await synthetics.takeScreenshot(stepName, 'loaded');
-              }
-
-              // Reset page
-              await resetPage(page);
-          };
-
-          exports.handler = async () => {
-              return await loadBlueprint();
-          };
-      ExecutionRoleArn:
-        Fn::ImportValue:
-          !Sub "${SmokeStack}-canary-role"
-      RuntimeVersion: syn-nodejs-puppeteer-6.2
-      RunConfig:
-        TimeoutInSeconds: 60
-      Schedule:
-        Expression: rate(1 minute)
-      StartCanaryAfterCreation: true
-
-  SelfServiceIntegrationCanaryAlarm:
-    Type: AWS::CloudWatch::Alarm
-    Properties:
-      # The alarm name is used by lambda to determine the sending origin
-      # and should be changed with caution.
-      AlarmName: "OnboardingSelfServiceIntegrationHealth"
-      AlarmDescription: "Self service (integration) canary: 1 failure in the last 5 minutes"
-      AlarmActions:
-        - !If
-          - IsAlerting
-          - Fn::ImportValue:
-              !Sub "${SmokeStack}-sns-topic"
-          - !Ref AWS::NoValue
-      OKActions:
-        - !If
-          - IsAlerting
-          - Fn::ImportValue:
-              !Sub "${SmokeStack}-sns-topic"
-          - !Ref AWS::NoValue
-
-      ComparisonOperator: GreaterThanOrEqualToThreshold
-      Statistic: Sum
-      Threshold: 1
-      Period: 300
-      EvaluationPeriods: 1
-      # The metric is only reported when a test fails,
-      # so missing data means the tests are not failing.
-      TreatMissingData: notBreaching
-
-      MetricName: Failed
-      Namespace: CloudWatchSynthetics
-      Dimensions:
-        - Name: CanaryName
-          Value: !Ref SelfServiceIntegrationCanary

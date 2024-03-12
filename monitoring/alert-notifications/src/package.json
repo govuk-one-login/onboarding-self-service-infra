@@ -4,7 +4,7 @@
   "version": "0.0.1",
   "private": true,
   "dependencies": {
-    "@aws-sdk/client-sns": "^3.354.0",
+    "axios": "^1.6.0",
     "esbuild": "^0.20.0"
   },
   "devDependencies": {
