@@ -1,0 +1,79 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Onboarding self service team parameter change monitoring
+
+Parameters:
+  NotificationsStack:
+    Type: String
+    Description: "The stack name for the stack that contains the alert notification resources"
+    Default: onboarding-infrastructure-monitoring-alert-notifications
+  EnableAlerting:
+    Description: "Whether to enable alerting for parameter change events"
+    Type: String
+    AllowedValues: [ true, false ]
+    Default: true
+
+Conditions:
+  IsAlerting: !Equals [true, !Ref EnableAlerting]
+
+Resources:
+  ParameterChangesEventRule:
+    Type: AWS::Events::Rule
+    Condition: IsAlerting
+    Properties:
+      Description: "ParameterChangesEventRule"
+      EventPattern:
+        source: [ "aws.ssm" ]
+        account: [ !Ref AWS::AccountId ]
+        detail-type: [ "Parameter Store Change" ]
+        detail:
+          name:
+            - { "prefix": "/self-service/" }
+            - { "prefix": "/product-pages/" }
+          operation:
+            - "Update"
+            - "Delete"
+      State: !If [ IsAlerting, "ENABLED", "DISABLED" ]
+      Targets:
+        - Arn: !GetAtt EventRuleLogsGroup.Arn
+          Id: "OnboardingParameterChangeLogRule"
+        - Arn:
+            Fn::ImportValue:
+              !Sub "${NotificationsStack}-sns-topic-arn"
+          Id: "OnboardingParameterChangeSnsRule"
+          InputTransformer:
+            InputPathsMap:
+              account: $.account
+              title: $.detail-type
+              name: $.detail.name
+              description: $.detail.description
+              action: $.detail.operation
+            InputTemplate: |
+              {
+                "Application" : "SSM Parameter Alerts",
+                "Heading" : "<title>",
+                "Message" : "A parameter change has been detected for `<name>`\n_<description>_",
+                "Context" : "AWS account: <account> (<action>)",
+                "Colour" : "Amber"
+              }
+
+  EventRuleLogsGroup:
+    # checkov:skip=CKV_AWS_158:Ensure that CloudWatch Log Group is encrypted by KMS
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: '/aws/events/onboarding-infrastructure/monitoring/parameter-changes'
+      RetentionInDays: 14
+
+  ParameterChangeEventPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: sns:Publish
+            Resource: "*"
+      Topics:
+        - Fn::ImportValue:
+            !Sub "${NotificationsStack}-sns-topic-arn"
