@@ -7,6 +7,14 @@ This component is responsible for sending alerts to the relevant notification ch
 - pagerduty
 - logs
 
+## Pre-requisites
+
+This stack requires the following parameters to be set before deploying this stack:
+
+- /onboarding-infrastructure/monitoring/slack-webhook-path
+- /onboarding-infrastructure/monitoring/slack-channel
+- /onboarding-infrastructure/monitoring/notification-email-address
+
 ## Sending alerts
 
 This component publishes an SNS topic ARN to the SSM Param `/onboarding/monitoring/alert-notification-topic`.
@@ -35,3 +43,6 @@ The notification stack is deployed once in each environment, but will only :
     --base-dir monitoring/alert-notifications \
     --template monitoring/alert-notifications/alert-notifications.template.yml
 ```
+di-sse-alerts-test
+di-dfa-tech@digital.cabinet-office.gov.uk
+services/T8GT9416G/BRESZB5FE/QzdIuXUNv7XFt8gR8Ga1gwLx

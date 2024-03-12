@@ -33,6 +33,19 @@ Outputs:
 Conditions:
   IsAlerting: !Equals [true, !Ref EnableAlerting]
 
+Mappings:
+  Account:
+    "494650018671": # Development account
+      canaryResultsBucket: 'onboarding-monitoring-development-canary-results'
+    "399055180839": # Build account
+      canaryResultsBucket: 'onboarding-monitoring-build-canary-results'
+    "325730373996": # Staging account
+      canaryResultsBucket: 'onboarding-monitoring-staging-canary-results'
+    "663985455444": # Integration account, monitors production endpoints
+      canaryResultsBucket: 'onboarding-monitoring-integration-canary-results'
+    "389946456390": # Production account, monitors integration endpoints
+      canaryResultsBucket: 'onboarding-monitoring-production-canary-results'
+
 Resources:
   CanarySnsTopic:
     # checkov:skip=CKV_AWS_26: "Ensure all data stored in the SNS topic is encrypted"
@@ -103,7 +116,7 @@ Resources:
     # checkov:skip=CKV_AWS_21: "Ensure the S3 bucket has versioning enabled"
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: 'onboarding-infrastructure-monitoring-canary-results'
+      BucketName: !FindInMap [ Account, !Ref AWS::AccountId, canaryResultsBucket ]
       PublicAccessBlockConfiguration:
         RestrictPublicBuckets: true
         BlockPublicPolicy: true
