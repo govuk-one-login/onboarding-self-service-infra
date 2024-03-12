@@ -10,7 +10,7 @@ Smoke tests are deployed as two components, the supporting stacks can be deploye
 
 ```
 ./scripts/deploy-sam-stack.sh \
-    --account build \
+    --account development \
     --build \
     --stack-name onboarding-infrastructure-monitoring-smoke-tests \
     --base-dir monitoring/smoke-tests \
@@ -22,7 +22,7 @@ The canary alarms are contained in a separate stack which can be deployed with:
 
 ```
 ./scripts/deploy-sam-stack.sh \
-    --account build \
+    --account development \
     --build \
     --stack-name onboarding-infrastructure-monitoring-smoke-tests-canary-alarms \
     --base-dir monitoring/smoke-tests \

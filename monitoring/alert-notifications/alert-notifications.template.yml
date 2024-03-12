@@ -1,0 +1,100 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Onboarding self service team alert notification dispatcher
+
+Parameters:
+  SlackWebhookPath:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /onboarding-infrastructure/monitoring/slack-webhook-path
+    Description: "Slack webhook path for DI alerts. The value is the path of the Slack webhook after the domain, without the leading slash."
+  SlackChannelName:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /onboarding-infrastructure/monitoring/slack-channel
+    Description: "Slack channel to use for alerts and alarms"
+  NotificationEmailAddress:
+    Type: AWS::SSM::Parameter::Value<String>
+    Default: /onboarding-infrastructure/monitoring/notification-email-address
+    Description: "Email address to use when delivering Canary notifications"
+  EnableAlerting:
+    Description: "Whether to enable alerts to be sent out (only allowed in production and integration)"
+    Type: String
+    AllowedValues: [ true, false ]
+    Default: true
+
+Outputs:
+  SnsTopic:
+    Description: The SNS topic to send alarms to
+    Value: !GetAtt AlertNotificationsSnsTopic.TopicName
+    Export:
+      Name: !Sub "${AWS::StackName}-sns-topic"
+  SnsTopicArn:
+    Description: The SNS topic arn to send alarms to
+    Value: !Ref AlertNotificationsSnsTopic
+    Export:
+      Name: !Sub "${AWS::StackName}-sns-topic-arn"
+
+Conditions:
+  IsAlerting: !Equals [true, !Ref EnableAlerting]
+
+Resources:
+  AlertNotificationsSnsTopic:
+    # checkov:skip=CKV_AWS_26: "Ensure all data stored in the SNS topic is encrypted"
+    Type: AWS::SNS::Topic
+    Properties:
+      DisplayName: Onboarding Monitoring Notifications
+      Subscription:
+        - !If
+          - IsAlerting
+          - Protocol: lambda
+            Endpoint: !GetAtt SnsToSlackFunction.Arn
+          - !Ref AWS::NoValue
+
+  BackupAlertSnsTopic:
+    # checkov:skip=CKV_AWS_26: "Ensure all data stored in the SNS topic is encrypted"
+    Type: AWS::SNS::Topic
+    Properties:
+      Subscription:
+        - Protocol: email
+          Endpoint: !Ref NotificationEmailAddress
+
+  SnsToSlackFunction:
+    # checkov:skip=CKV_AWS_115: "Ensure that AWS Lambda function is configured for function-level concurrent execution limit"
+    # checkov:skip=CKV_AWS_117: "Ensure that AWS Lambda function is configured inside a VPC"
+    # checkov:skip=CKV_AWS_173: "Check encryption settings for Lambda environmental variable"
+    Type: AWS::Serverless::Function
+    Properties:
+      Description: A lambda function that takes an SNS message and sends it to Slack
+      CodeUri: src
+      Handler: sns-to-slack.lambdaHandler
+      Runtime: nodejs18.x
+      LoggingConfig:
+        LogGroup: !Ref LambdaLogsGroup
+      Environment:
+        Variables:
+          SLACK_CHANNEL: !Ref SlackChannelName
+          SLACK_WEBHOOK_PATH: !Ref SlackWebhookPath
+      DeadLetterQueue:
+        Type: SNS
+        TargetArn: !Ref BackupAlertSnsTopic
+      Policies:
+        - SNSPublishMessagePolicy:
+            TopicName: !GetAtt BackupAlertSnsTopic.TopicName
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        EntryPoints: [ sns-to-slack.ts ]
+
+  SnsToSlackFunctionPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref SnsToSlackFunction
+      Principal: sns.amazonaws.com
+      SourceArn: !Ref AlertNotificationsSnsTopic
+
+  LambdaLogsGroup:
+    # checkov:skip=CKV_AWS_158:Ensure that CloudWatch Log Group is encrypted by KMS
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: '/aws/lambda/onboarding-infrastructure/monitoring/alert-notifications'
+      RetentionInDays: 14

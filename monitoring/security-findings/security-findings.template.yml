@@ -3,30 +3,15 @@ Transform: AWS::Serverless-2016-10-31
 Description: Onboarding self service team security hub findings monitoring
 
 Parameters:
-  SlackWebhookPath:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /onboarding-infrastructure/monitoring/slack-webhook-path
-    Description: "Slack webhook path for DI alerts. The value is the path of the Slack webhook after the domain, without the leading slash."
-  SlackChannelName:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /onboarding-infrastructure/monitoring/slack-channel
-    Description: "Slack channel to use for alerts and alarms"
-  NotificationEmailAddress:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /onboarding-infrastructure/monitoring/notification-email-address
-    Description: "Email address to use when delivering notifications"
+  NotificationsStack:
+    Type: String
+    Description: "The stack name for the stack that contains the alert notification resources"
+    Default: onboarding-infrastructure-monitoring-alert-notifications
   EnableAlerting:
-    Description: "Whether to enable alerts to be sent when the metrics rise above the threshold"
+    Description: "Whether to enable alerting for Security Hub events"
     Type: String
     AllowedValues: [ true, false ]
     Default: true
-
-Outputs:
-  SnsTopic:
-    Description: The SNS topic to send alarms to
-    Value: !Ref SecurityFindingsSnsTopic
-    Export:
-      Name: !Sub "${AWS::StackName}-sns-topic"
 
 Conditions:
   IsAlerting: !Equals [true, !Ref EnableAlerting]
@@ -42,27 +27,45 @@ Resources:
         detail-type: [ "Security Hub Findings - Imported" ]
         detail:
           findings:
-            AwsAccountId: [ "663985455444", "389946456390" ]
+            AwsAccountId: [ !Ref AWS::AccountId ]
             Compliance:
               Status: [ "FAILED", "WARNING" ]
             RecordState: [ "ACTIVE" ]
             Severity:
               Label: [ "HIGH", "CRITICAL" ]
-      State: "ENABLED"
+      State: !If [ IsAlerting, "ENABLED", "DISABLED" ]
       Targets:
-        - Arn: !Ref SecurityFindingsSnsTopic
-          Id: "OnboardingSecurityFindingsSnsRule"
-        - Arn: !Ref SecurityFindingsLogGroup
+        - Arn: !GetAtt EventRuleLogsGroup.Arn
           Id: "OnboardingSecurityFindingsLogRule"
+        - Arn:
+            Fn::ImportValue:
+              !Sub "${NotificationsStack}-sns-topic-arn"
+          Id: "OnboardingSecurityFindingsSnsRule"
+          InputTransformer:
+            InputPathsMap:
+              account: $.detail.findings[0].AwsAccountId
+              finding: $.detail.findings[0].Title
+              severity: $.detail.findings[0].Severity.Label
+              resource_type: $.detail.findings[0].Resources[0].Type
+              resource_id: $.detail.findings[0].Resources[0].Id
+            InputTemplate: |
+              {
+                "Application" : "Security Hub Alerts",
+                "Heading" : "<finding>",
+                "Message" : "Security Hub has found an issue with the resource <resource_type>: *<resource_id>*",
+                "Context" : "AWS account: <account> (<severity>)",
+                "Colour" : "Red"
+              }
 
-  SecurityFindingsLogGroup:
-    # checkov:skip=CKV_AWS_158: "Ensure that CloudWatch Log Group is encrypted by KMS"
+
+  EventRuleLogsGroup:
+    # checkov:skip=CKV_AWS_158:Ensure that CloudWatch Log Group is encrypted by KMS
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: '/onboarding-infrastructure/monitoring/security-findings'
+      LogGroupName: '/aws/events/onboarding-infrastructure/monitoring/security-findings'
       RetentionInDays: 14
 
-  EventTopicPolicy:
+  SecurityEventPolicy:
     Type: AWS::SNS::TopicPolicy
     Properties:
       PolicyDocument:
@@ -70,57 +73,8 @@ Resources:
           - Effect: Allow
             Principal:
               Service: events.amazonaws.com
-            Action: 'sns:Publish'
-            Resource: !Ref SecurityFindingsSnsTopic
+            Action: sns:Publish
+            Resource: "*"
       Topics:
-        - !Ref SecurityFindingsSnsTopic
-
-  SecurityFindingsSnsTopic:
-    # checkov:skip=CKV_AWS_26: "Ensure all data stored in the SNS topic is encrypted"
-    Type: AWS::SNS::Topic
-    Properties:
-      DisplayName: Onboarding Security Hub Findings
-      Subscription:
-        - Protocol: lambda
-          Endpoint: !GetAtt SecurityFindingsSnsToSlackFunction.Arn
-
-  LambdaDeadLetterQueueTopic:
-    # checkov:skip=CKV_AWS_26: "Ensure all data stored in the SNS topic is encrypted"
-    Type: AWS::SNS::Topic
-    Properties:
-      Subscription:
-        - Protocol: email
-          Endpoint: !Ref NotificationEmailAddress
-
-  SecurityFindingsSnsToSlackFunction:
-    # checkov:skip=CKV_AWS_115: "Ensure that AWS Lambda function is configured for function-level concurrent execution limit"
-    # checkov:skip=CKV_AWS_117: "Ensure that AWS Lambda function is configured inside a VPC"
-    # checkov:skip=CKV_AWS_173: "Check encryption settings for Lambda environmental variable"
-    Type: AWS::Serverless::Function
-    Properties:
-      Description: A lambda function that takes a Security Hub Finding SNS message and sends it to Slack
-      CodeUri: src
-      Handler: sns-to-slack.lambdaHandler
-      Runtime: nodejs18.x
-      Environment:
-        Variables:
-          SLACK_CHANNEL: !Ref SlackChannelName
-          SLACK_WEBHOOK_PATH: !Ref SlackWebhookPath
-      DeadLetterQueue:
-        Type: SNS
-        TargetArn: !Ref LambdaDeadLetterQueueTopic
-      Policies:
-        - SNSPublishMessagePolicy:
-            TopicName: !GetAtt LambdaDeadLetterQueueTopic.TopicName
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        EntryPoints: [ sns-to-slack.ts ]
-
-  SecurityFindingsSnsToSlackFunctionPermission:
-    Type: AWS::Lambda::Permission
-    Properties:
-      Action: lambda:InvokeFunction
-      FunctionName: !Ref SecurityFindingsSnsToSlackFunction
-      Principal: sns.amazonaws.com
-      SourceArn: !Ref SecurityFindingsSnsTopic
+        - Fn::ImportValue:
+            !Sub "${NotificationsStack}-sns-topic-arn"

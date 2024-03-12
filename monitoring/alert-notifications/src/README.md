@@ -8,21 +8,16 @@ This lambda translates the message to something Slack will accept and then sends
 
 ## Sample messages to test the SNS to Slack function
 
-Sample test message to post to the Security Findings SNS topic.
+Sample test message to post to the Canary SNS topic.
 
 ```json
 {
-  "detail": {
-    "findings": [{
-      "AwsAccountId": "123456789012",
-      "Title": "Google Suite Two-Factor Backup Codes uploaded to S3",
-      "ProductFields": {
-        "aws/securityhub/SeverityLabel": "LOW",
-        "aws/securityhub/ProductName": "Macie"
-      },
-      "RecordState": "ACTIVE"
-    }]
-  }
+    "Emoji": "String<:emoji:>",
+    "Application": "String",
+    "Heading": "String",
+    "Message": "String<mrkdown>",
+    "Context": "String<mrkdown>",
+    "Colour": "Green|Yellow|Amber|Red|Neutral"
 }
 ```
 
@@ -33,7 +28,7 @@ Sample test message to post directly to the Slack lambda function - this mimics 
     "Records": [
         {
             "Sns": {
-                "Message": "{\"AlarmName\":\"TestAlarmName\",\"NewStateValue\":\"OK\",\"OldStateValue\":\"test\"}"
+                "Message": "{\"Application\":\"DI SSE Test Alerts\",\"Message\":\"Test message\",\"Colour\":\"Green\"}"
             }
         }
     ]

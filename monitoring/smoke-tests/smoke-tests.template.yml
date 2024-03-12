@@ -3,18 +3,15 @@ Transform: AWS::Serverless-2016-10-31
 Description: Onboarding self service team smoke-test monitoring
 
 Parameters:
-  SlackWebhookPath:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /onboarding-infrastructure/monitoring/slack-webhook-path
-    Description: "Slack webhook path for DI alerts. The value is the path of the Slack webhook after the domain, without the leading slash."
-  SlackChannelName:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /onboarding-infrastructure/monitoring/slack-channel
-    Description: "Slack channel to use for alerts and alarms"
-  NotificationEmailAddress:
-    Type: AWS::SSM::Parameter::Value<String>
-    Default: /onboarding-infrastructure/monitoring/notification-email-address
-    Description: "Email address to use when delivering Canary notifications"
+  NotificationsStack:
+    Type: String
+    Description: "The stack name for the stack that contains the alert notification resources"
+    Default: onboarding-infrastructure-monitoring-alert-notifications
+  EnableAlerting:
+    Description: "Whether to enable alerting for Security Hub events"
+    Type: String
+    AllowedValues: [ true, false ]
+    Default: true
 
 Outputs:
   CanaryExecutionRole:
@@ -33,56 +30,72 @@ Outputs:
     Export:
       Name: !Sub "${AWS::StackName}-artifact-bucket"
 
+Conditions:
+  IsAlerting: !Equals [true, !Ref EnableAlerting]
+
 Resources:
   CanarySnsTopic:
     # checkov:skip=CKV_AWS_26: "Ensure all data stored in the SNS topic is encrypted"
     Type: AWS::SNS::Topic
     Properties:
-      DisplayName: Onboarding Smoke Test Healthchecks
+      DisplayName: Onboarding Smoke Test Heartbeat Checks
       Subscription:
-        - Protocol: lambda
-          Endpoint: !GetAtt CanarySnsToSlackFunction.Arn
+        - !If
+          - IsAlerting
+          - Protocol: lambda
+            Endpoint: !GetAtt CanarySnsNotificationFunction.Arn
+          - !Ref AWS::NoValue
 
-  LambdaDeadLetterQueueTopic:
-    # checkov:skip=CKV_AWS_26: "Ensure all data stored in the SNS topic is encrypted"
-    Type: AWS::SNS::Topic
-    Properties:
-      Subscription:
-        - Protocol: email
-          Endpoint: !Ref NotificationEmailAddress
-
-  CanarySnsToSlackFunction:
+  CanarySnsNotificationFunction:
     # checkov:skip=CKV_AWS_115: "Ensure that AWS Lambda function is configured for function-level concurrent execution limit"
     # checkov:skip=CKV_AWS_117: "Ensure that AWS Lambda function is configured inside a VPC"
     # checkov:skip=CKV_AWS_173: "Check encryption settings for Lambda environmental variable"
     Type: AWS::Serverless::Function
     Properties:
-      Description: A lambda function that takes a Canary SNS message and sends it to Slack
+      Description: A lambda function that takes a Canary SNS message and sends it as an alert notification
       CodeUri: src
-      Handler: sns-to-slack.lambdaHandler
+      Handler: send-alert.lambdaHandler
       Runtime: nodejs18.x
+      LoggingConfig:
+        LogGroup: !Ref LambdaLogsGroup
       Environment:
         Variables:
-          SLACK_CHANNEL: !Ref SlackChannelName
-          SLACK_WEBHOOK_PATH: !Ref SlackWebhookPath
-      DeadLetterQueue:
-        Type: SNS
-        TargetArn: !Ref LambdaDeadLetterQueueTopic
+          SNS_TOPIC_ARN:
+            Fn::ImportValue:
+              !Sub "${NotificationsStack}-sns-topic-arn"
       Policies:
         - SNSPublishMessagePolicy:
-            TopicName: !GetAtt LambdaDeadLetterQueueTopic.TopicName
+            TopicName:
+              Fn::ImportValue:
+                !Sub "${NotificationsStack}-sns-topic-arn"
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
-        EntryPoints: [ sns-to-slack.ts ]
+        EntryPoints: [ send-alert.ts ]
 
   CanarySnsToSlackFunctionPermission:
     Type: AWS::Lambda::Permission
     Properties:
       Action: lambda:InvokeFunction
-      FunctionName: !Ref CanarySnsToSlackFunction
+      FunctionName: !Ref CanarySnsNotificationFunction
       Principal: sns.amazonaws.com
       SourceArn: !Ref CanarySnsTopic
+
+  NotificationEventPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: 'sns:Publish'
+            Resource:
+              Fn::ImportValue:
+                !Sub "${NotificationsStack}-sns-topic-arn"
+      Topics:
+        - Fn::ImportValue:
+            !Sub "${NotificationsStack}-sns-topic-arn"
 
   CanaryResultsBucket:
     # checkov:skip=CKV_AWS_18: "Ensure the S3 bucket has access logging enabled"
@@ -90,7 +103,7 @@ Resources:
     # checkov:skip=CKV_AWS_21: "Ensure the S3 bucket has versioning enabled"
     Type: AWS::S3::Bucket
     Properties:
-      BucketName: 'onboarding-self-service-monitoring-canary-results'
+      BucketName: 'onboarding-infrastructure-monitoring-canary-results'
       PublicAccessBlockConfiguration:
         RestrictPublicBuckets: true
         BlockPublicPolicy: true
@@ -106,7 +119,14 @@ Resources:
     # checkov:skip=CKV_AWS_158: "Ensure that CloudWatch Log Group is encrypted by KMS"
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: '/onboarding-self-service/monitoring/canary'
+      LogGroupName: '/aws/cloudwatch/onboarding-infrastructure/monitoring/heartbeats'
+      RetentionInDays: 14
+
+  LambdaLogsGroup:
+    # checkov:skip=CKV_AWS_158:Ensure that CloudWatch Log Group is encrypted by KMS
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: '/aws/lambda/onboarding-infrastructure/monitoring/heartbeat-alerts'
       RetentionInDays: 14
 
   CanaryExecutionRole:

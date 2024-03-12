@@ -8,10 +8,9 @@ This component should be deployed to both integration and production accounts, w
 
 ```
 ./scripts/deploy-sam-stack.sh \
-    --account integration \
+    --account development \
     --build \
     --stack-name onboarding-infrastructure-monitoring-security-findings \
     --base-dir monitoring/security-findings \
-    --template monitoring/security-findings/security-findings.template.yml \
-    --manifest monitoring/security-findings/src/package.json
+    --template monitoring/security-findings/security-findings.template.yml
 ```
