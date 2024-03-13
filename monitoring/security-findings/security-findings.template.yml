@@ -33,6 +33,9 @@ Resources:
             RecordState: [ "ACTIVE" ]
             Severity:
               Label: [ "HIGH", "CRITICAL" ]
+            Title:
+              - anything-but:
+                  - "1.14 Ensure hardware MFA is enabled for the root user"
       State: !If [ IsAlerting, "ENABLED", "DISABLED" ]
       Targets:
         - Arn: !GetAtt EventRuleLogsGroup.Arn
