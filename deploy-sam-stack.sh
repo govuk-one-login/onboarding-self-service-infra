@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 # Utility script to deploy SAM stacks
-BASE_DIR="$(dirname "${BASH_SOURCE[0]}")/../"
-cd $BASE_DIR
+BASE_DIR="$(dirname "${BASH_SOURCE[0]}")"
 set -e
 
 OPTION_REGEX="^--?.*"
@@ -47,7 +46,7 @@ while [[ -n $1 ]]; do
   shift
 done
 
-$DEPLOY && ! ./scripts/aws.sh check-current-account "${ACCOUNT:-}" 2> /dev/null &&
+$DEPLOY && ! "$BASE_DIR"/aws.sh check-current-account "${ACCOUNT:-}" 2> /dev/null &&
   echo "Authenticate to${ACCOUNT:+" the '$ACCOUNT' account in"} AWS before deploying the stack" && exit 1
 
 [[ $TEMPLATE ]] && ! [[ -f $TEMPLATE ]] && echo "File '$TEMPLATE' does not exist" && exit 1
