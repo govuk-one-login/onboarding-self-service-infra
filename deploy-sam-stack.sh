@@ -25,6 +25,7 @@ while [[ -n $1 ]]; do
       ;;
     -s3 | --prefix | --s3-prefix) shift && S3_PREFIX=$1 ;;
     -f | --template | --template-file) shift && TEMPLATE=$1 && VALIDATE=true ;;
+    -m | --manifest) shift && MANIFEST=$1 ;;
     -a | --account) shift && ACCOUNT=$1 ;;
     -s | --base-dir) shift && SAM_BASE_DIR=$1 ;;
     -b | --build) BUILD=true ;;
@@ -55,7 +56,7 @@ if $DEPLOY; then
   [[ -f samconfig.toml || -f $CONFIG_FILE ]] && CONFIG=true
 
   if [[ $STACK_NAME || $CONFIG || $GUIDED ]]; then
-    TAGS+=(sse:application=self-service sse:deployment-source=manual)
+    TAGS+=(sse:component=infrastructure sse:deployment-source=manual)
     : "${S3_PREFIX:=$STACK_NAME}"
 
     echo "Deploying${STACK_NAME:+" stack '$STACK_NAME'"}${TEMPLATE:+" from template '$TEMPLATE'"}"
@@ -77,6 +78,7 @@ if $BUILD; then
   echo "Building${TEMPLATE:+" template '$TEMPLATE'"}..."
   sam build \
     ${TEMPLATE:+--template $TEMPLATE} \
+    ${MANIFEST:+--manifest $MANIFEST} \
     ${SAM_BASE_DIR:+--base-dir $SAM_BASE_DIR} \
     ${PARALLEL:+--parallel} \
     ${CACHED:+--cached}
@@ -89,7 +91,7 @@ ${DISABLE_ROLLBACK:-false} && DISABLE_ROLLBACK_OPTION="--disable-rollback"
 
 [[ $(aws cloudformation describe-stacks --stack-name "$STACK_NAME" --query "Stacks[].StackStatus" \
   --output text 2> /dev/null) == ROLLBACK_COMPLETE ]] && ${DELETE_ON_FAILED_CREATION:-true} &&
-  sam delete --no-prompts --region "${AWS_REGION:-${AWS_DEFAULT_REGION}}" --stack-name "$STACK_NAME"
+  sam delete --no-prompts --stack-name "$STACK_NAME"
 
 sam deploy \
   ${STACK_NAME:+--stack-name "$STACK_NAME"} \
