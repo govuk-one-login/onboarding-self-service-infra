@@ -19,7 +19,6 @@ Conditions:
 Resources:
   ParameterChangesEventRule:
     Type: AWS::Events::Rule
-    Condition: IsAlerting
     Properties:
       Description: "ParameterChangesEventRule"
       EventPattern:
@@ -55,6 +54,48 @@ Resources:
                 "Message" : "A parameter change has been detected for `<name>`\n_<description>_",
                 "Context" : "AWS account: <account> (<action>)",
                 "Colour" : "Amber"
+              }
+
+  SecretChangesEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "SecretChangesEventRule"
+      EventPattern:
+        source: [ "aws.secretsmanager" ]
+        account: [ !Ref AWS::AccountId ]
+        "$or":
+          - detail-type: [ "AWS API Call via CloudTrail" ]
+          - detail-type: [ "AWS Service Event via CloudTrail" ]
+        detail:
+          eventSource: [ "secretsmanager.amazonaws.com" ]
+          eventName:
+            - "PutSecretValue"
+            - "UpdateSecret"
+            - "RotationSucceeded"
+            - "SecretVersionDeletion"
+            - "DeleteSecret"
+      State: !If [ IsAlerting, "ENABLED", "DISABLED" ]
+      Targets:
+        - Arn: !GetAtt EventRuleLogsGroup.Arn
+          Id: "OnboardingSecretChangeLogRule"
+        - Arn:
+            Fn::ImportValue:
+              !Sub "${NotificationsStack}-sns-topic-arn"
+          Id: "OnboardingSecretChangeSnsRule"
+          InputTransformer:
+            InputPathsMap:
+              account: $.account
+              title: $.detail-type
+              name: $.detail.requestParameters.secretId
+              description: $.detail.description
+              action: $.detail.eventName
+            InputTemplate: |
+              {
+                "Application" : "Secret Change Alerts",
+                "Heading" : "Secrets Manager secret change",
+                "Message" : "A secret change has been detected for `<name>`",
+                "Context" : "AWS account: <account> (<action>)",
+                "Colour" : "Red"
               }
 
   EventRuleLogsGroup:
