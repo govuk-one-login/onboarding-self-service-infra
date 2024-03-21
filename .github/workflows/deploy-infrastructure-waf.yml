@@ -1,0 +1,73 @@
+name: Monitoring smoke tests deployment
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - infrastructure/waf/*
+
+permissions: { }
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  STACK_NAME: onboarding-infrastructure-waf
+
+jobs:
+  build:
+    name: Build stack
+    runs-on: ubuntu-latest
+    outputs:
+      artifact-name: ${{ steps.build.outputs.artifact-name }}
+      cache-name: ${{ steps.build.outputs.cache-key }}
+      cache-restore-keys: ${{ steps.build.outputs.cache-restore-keys }}
+    steps:
+      - name: Build waf infrastructure
+        uses: govuk-one-login/github-actions/sam/build-application@6144f39407b01c9b25b39537b3956deca9e32620 # 22/02/2024
+        id: build-infrastructure-waf
+        with:
+          pull-repository: true
+          template: infrastructure/waf/waf.template.yml
+          manifest: infrastructure/wafpackage.json
+          cache-name: ${{ vars.STACK_NAME }}
+          artifact-name: ${{ vars.STACK_NAME }}-sam
+
+  deploy:
+    name: Deploy stack
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        application: ['self-service', 'product-pages']
+    timeout-minutes: 15
+    needs: build
+    concurrency:
+      group: deploy-${{ vars.STACK_NAME }}-${{ matrix.application }}-${{ github.head_ref || github.ref_name }}
+    outputs:
+      aws-region: ${{ steps.deploy.outputs.aws-region }}
+      stack-name: ${{ steps.deploy.outputs.stack-name }}
+      stack-url: ${{ steps.deploy.outputs.stack-url }}
+      stack-outputs: ${{ steps.deploy.outputs.stack-outputs }}
+    steps:
+      - name: Deploy waf infrastructure
+        uses: govuk-one-login/github-actions/sam/deploy-stack@6144f39407b01c9b25b39537b3956deca9e32620 # 22/02/2024
+        id: deploy-infrastructure-waf
+        with:
+          stack-name: ${{ vars.STACK_NAME }}-${{ matrix.application }}
+          aws-role-arn: ${{ vars.DEPLOYMENT_ROLE_ARN }}
+          sam-deployment-bucket: ${{ vars.DEPLOYMENT_ARTIFACTS_BUCKET }}
+          artifact-name: ${{ needs.build.outputs.artifact-name }}
+          cache-name: ${{ needs.build.outputs.cache-name }}
+          template: waf.template.yml
+          s3-prefix: onboarding-infrastructure
+          tags: |-
+            sse:component=${{ vars.STACK_NAME }}-${{ matrix.application }}
+            sse:application=${{ matrix.application }}
+            sse:stack-type=infrastructure
+            sse:stack-role=waf
+            sse:deployment-source=github-actions
+          parameters: |
+            Environment=dev
+            Application=${{ matrix.application }}
