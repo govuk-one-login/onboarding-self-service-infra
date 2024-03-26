@@ -18,7 +18,7 @@ function get-signing-config {
 
 function get-source-config {
   local previous_account outputs
-  previous_account=$(../../aws.sh get-previous-account-name "$ACCOUNT")
+  previous_account=$(../aws.sh get-previous-account-name "$ACCOUNT")
   outputs=$(gds aws di-onboarding-"$previous_account" -- sam list stack-outputs --stack-name "$STACK_NAME" --output json)
 
   api_source_bucket=$(get-param "$outputs" APIPromotionBucket)
@@ -27,16 +27,16 @@ function get-source-config {
   frontend_source_bucket=$(get-param "$outputs" FrontendPromotionBucket)
 }
 
-ACCOUNT=$(../../aws.sh get-current-account-name)
-INITIAL_ACCOUNT=$(../../aws.sh get-initial-account "$ACCOUNT")
+ACCOUNT=$(../aws.sh get-current-account-name)
+INITIAL_ACCOUNT=$(../aws.sh get-initial-account "$ACCOUNT")
 STACK_NAME=secure-pipelines
 
 [[ $ACCOUNT == "$INITIAL_ACCOUNT" ]] || get-source-config
-[[ $ACCOUNT == development ]] && ENV=dev || NEXT_ACCOUNT=$(../../aws.sh get-next-account "$ACCOUNT")
+[[ $ACCOUNT == development ]] && ENV=dev || NEXT_ACCOUNT=$(../aws.sh get-next-account "$ACCOUNT")
 : ${ENV:=$ACCOUNT}
 
 get-signing-config
-../../deploy-sam-stack.sh "$@" \
+../deploy-sam-stack.sh "$@" \
   --validate \
   --stack-name "$STACK_NAME" \
   --template deployment-pipelines.template.yml \

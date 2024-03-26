@@ -4,7 +4,7 @@ set -eu
 
 STACK_NAME=deployment-config
 
-../../deploy-sam-stack.sh "$@" \
+../deploy-sam-stack.sh "$@" \
   --validate \
   --account development \
   --stack-name $STACK_NAME \
