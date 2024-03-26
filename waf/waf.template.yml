@@ -19,7 +19,6 @@ Parameters:
   Application:
     Description: "The application that the waf should protect."
     Type: "String"
-    Default: dev
     MaxLength : 22
     AllowedPattern: "^[a-zA-Z0-9-]+$"
 
@@ -62,6 +61,9 @@ Resources:
             ManagedRuleGroupStatement:
               VendorName: AWS
               Name: AWSManagedRulesCommonRuleSet
+              ExcludedRules:
+                - Name: EC2MetaDataSSRF_QUERYARGUMENTS
+                - Name: EC2MetaDataSSRF_BODY
           OverrideAction:
             !If
             - IsProdLikeEnvironment
