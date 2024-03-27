@@ -30,16 +30,16 @@ Conditions:
 
 Mappings:
   PlatformConfiguration:
-    dev:
-      clslDestinationArn: arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython
+    development:
+      clslDestinationArn: arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2
     build:
-      clslDestinationArn: arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython
+      clslDestinationArn: arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2
     staging:
-      clslDestinationArn: arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython
+      clslDestinationArn: arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2
     integration:
-      clslDestinationArn: arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython
+      clslDestinationArn: arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2
     production:
-      clslDestinationArn: arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython
+      clslDestinationArn: arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2
 
 # If a rule exists in ExcludedRules, then it's action is set to Count, instead of the default action for that group.
 # To upgrade a rule to follow the group action, please comment it out, so that it becomes active.
@@ -50,7 +50,7 @@ Resources:
     Type: AWS::WAFv2::WebACL
     Properties:
       Description: !Sub 'Web ACL for all ${Application} resources'
-      Name: !Sub 'onboarding-${Application}-webacl'
+      Name: !Sub '${Application}-webacl'
       DefaultAction:
         Allow: {}
 
@@ -307,9 +307,10 @@ Resources:
   CslsSubscriptionFilter:
     Type: AWS::Logs::SubscriptionFilter
     Properties:
-      DestinationArn: !FindInMap [ PlatformConfiguration, !Ref Environment, clslDestinationArn ]
-      FilterPattern: ""
       LogGroupName: !Ref CloudwatchLogsGroup
+      FilterName: !Sub "WAF logs for ${Application}"
+      FilterPattern: ""
+      DestinationArn: !FindInMap [ PlatformConfiguration, !Ref Environment, clslDestinationArn ]
 
   WebAclLogging:
     Type: AWS::WAFv2::LoggingConfiguration

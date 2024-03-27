@@ -29,12 +29,12 @@ This component should be deployed for the appropriate application (set `$APPLICA
 ```
 export APPLICATION='product-pages'
 export ENVIRONMENT='development'
-./scripts/deploy-sam-stack.sh \
+./deploy-sam-stack.sh \
     --account $ENVIRONMENT \
     --build \
     --stack-name onboarding-infrastructure-waf-$APPLICATION \
-    --template infrastructure/waf/waf.template.yml \
-    --manifest infrastructure/waf/package.json \
+    --template waf/waf.template.yml \
+    --manifest waf/package.json \
     --parameters Environment="$ENVIRONMENT" Application="$APPLICATION" \
     --tags sse:component="onboarding-infrastructure-waf-$APPLICATION" sse:application=$APPLICATION sse:stack-type=infrastructure sse:stack-role=waf sse:deployment-source=manual
 ```
