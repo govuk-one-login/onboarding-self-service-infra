@@ -33,9 +33,18 @@ Resources:
             RecordState: [ "ACTIVE" ]
             Severity:
               Label: [ "HIGH", "CRITICAL" ]
+            Workflow:
+              Status: [ "NEW" ]
             Title:
               - anything-but:
                   - "1.14 Ensure hardware MFA is enabled for the root user"
+            Resources:
+              Details:
+                Other:
+                  fmsPolicyName:
+                    - anything-but:
+                        - "TestDefaultSecurityGroupAudit" # See https://govukverify.atlassian.net/browse/SSE-3288
+
       State: !If [ IsAlerting, "ENABLED", "DISABLED" ]
       Targets:
         - Arn: !GetAtt EventRuleLogsGroup.Arn
