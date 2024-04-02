@@ -9,11 +9,14 @@ MANUAL_PARAMETERS=(google_analytics_gtm_container_id universal_analytics_gtm_con
 MANUAL_SECRETS=(zendesk_api_token zendesk_group_id zendesk_username register_spreadsheet_id vcap_services servicenow_auth_credentials servicenow_url)
 
 declare -A PARAMETERS=(
+  [enable_google_sheets]=$PARAMETER_NAME_PREFIX/frontend/google-sheets-integration-enabled
   [use_stub_sheets]=$PARAMETER_NAME_PREFIX/frontend/use-stub-sheets
   [register_sheet_data_range]=$PARAMETER_NAME_PREFIX/frontend/register-sheet-data-range
   [register_sheet_header_range]=$PARAMETER_NAME_PREFIX/frontend/register-sheet-header-range
   [mailing_list_sheet_data_range]=$PARAMETER_NAME_PREFIX/frontend/mailing-list-sheet-data-range
   [mailing_list_sheet_header_range]=$PARAMETER_NAME_PREFIX/frontend/mailing-list-sheet-header-range
+  [prototype_access_sheet_data_range]=$PARAMETER_NAME_PREFIX/frontend/prototype-accecss-sheet-data-range
+  [prototype_access_sheet_header_range]=$PARAMETER_NAME_PREFIX/frontend/prototype-accecss-sheet-header-range
   [zendesk_api_url]=$PARAMETER_NAME_PREFIX/frontend/zendesk-api-url
   [zendesk_tag]=$PARAMETER_NAME_PREFIX/frontend/zendesk-tag
   [zendesk_tag_one_login_admin_tool]=$PARAMETER_NAME_PREFIX/frontend/zendesk-tag-one-login-admin-tool
@@ -27,6 +30,8 @@ declare -A PARAMETERS=(
   [admin_tool_url]=$PARAMETER_NAME_PREFIX/frontend/admin-tool-url
   [show_test_banner]=$PARAMETER_NAME_PREFIX/frontend/show-test-banner
   [use_stub_servicenow]=$PARAMETER_NAME_PREFIX/frontend/use-stub-servicenow
+  [enable_jira_integration]=$PARAMETER_NAME_PREFIX/frontend/jira-integration-enabled
+  [use_stub_jira]=$PARAMETER_NAME_PREFIX/frontend/use-stub-jira
 
 )
 
@@ -47,58 +52,84 @@ declare -A SECRETS=(
 )
 
 # ============================
-# product pages param
+# Product Pages parameters
 # this will only create new params if not exists
 # and will not update any existing params
 # ============================
 function check-frontend-params {
+  local parameter=${PARAMETERS[test_banner]}
+  check-parameter-set "${parameter}" || write-parameter-value "$parameter" "true"
 
-  local parameter=${PARAMETERS[use_stub_sheets]}
+  parameter=${PARAMETERS[show_test_banner]}
+  check-parameter-set "${parameter}" || write-parameter-value "$parameter" "$([[ $ACCOUNT == production ]] && echo false || echo true)"
+
+  parameter=${PARAMETERS[admin_tool_url]}
+  check-parameter-set "${parameter}" || write-parameter-value "$parameter" "https://admin.sign-in.service.gov.uk"
+}
+
+function check-google-sheet-params {
+  local parameter=${PARAMETERS[enable_google_sheets]}
+  check-parameter-set "${parameter}" || write-parameter-value "$parameter" "true"
+
+  parameter=${PARAMETERS[use_stub_sheets]}
   check-parameter-set "${parameter}" || write-parameter-value "$parameter" "false"
+
   parameter=${PARAMETERS[register_sheet_data_range]}
   check-parameter-set "${parameter}" || write-parameter-value "$parameter" "Getstarted!A1"
+
   parameter=${PARAMETERS[register_sheet_header_range]}
   check-parameter-set "${parameter}" || write-parameter-value "$parameter" "Getstarted!A1:Y1"
+
   parameter=${PARAMETERS[mailing_list_sheet_data_range]}
   check-parameter-set "${parameter}" || write-parameter-value "$parameter" "'user who have requested to join the mailing list '!A1"
+
   parameter=${PARAMETERS[mailing_list_sheet_header_range]}
   check-parameter-set "${parameter}" || write-parameter-value "$parameter" "'user who have requested to join the mailing list '!A1:D1"
-  parameter=${PARAMETERS[zendesk_api_url]}
-  check-parameter-set "${parameter}" || write-parameter-value "$parameter" "https://govuk.zendesk.com/api/v2"
-  parameter=${PARAMETERS[zendesk_tag]}
-  check-parameter-set "${parameter}" || write-parameter-value "$parameter" "sign_in_service_teams"
-  parameter=${PARAMETERS[zendesk_tag_one_login_admin_tool]}
-  check-parameter-set "${parameter}" || write-parameter-value "$parameter" "self_service_admin"
-  parameter=${PARAMETERS[test_banner]}
-  check-parameter-set "${parameter}" || write-parameter-value "$parameter" "true"
-  parameter=${PARAMETERS[use_stub_zendesk]}
-  check-parameter-set "${parameter}" || write-parameter-value "$parameter" "true"
-  parameter=${PARAMETERS[google_tag_id]}
+
+  parameter=${PARAMETERS[prototype_access_sheet_data_range]}
+  check-parameter-set "${parameter}" || write-parameter-value "$parameter" "Htmlprototypeaccess!A1"
+
+  parameter=${PARAMETERS[prototype_access_sheet_header_range]}
+  check-parameter-set "${parameter}" || write-parameter-value "$parameter" "Htmlprototypeaccess!A1:Y1"
+}
+
+function check-google-analytics-params {
+  local parameter=${PARAMETERS[google_tag_id]}
   check-parameter-set "${parameter}" || write-parameter-value "$parameter" "GTM-PFTQ6G2"
+
   parameter=${PARAMETERS[universal_analytics_disabled]}
   check-parameter-set "$parameter" || write-parameter-value "$parameter" "false"
+
   parameter=${PARAMETERS[google_analytics_disabled]}
   check-parameter-set "$parameter" ||
     write-parameter-value "$parameter" "$([[ $ACCOUNT == production ]] && echo true || echo false)"
-  parameter=${PARAMETERS[show_test_banner]}
-  check-parameter-set "${parameter}" || write-parameter-value "$parameter" "$([[ $ACCOUNT == production ]] && echo false || echo true)"
-  parameter=${PARAMETERS[admin_tool_url]}
-  check-parameter-set "${parameter}" || write-parameter-value "$parameter" "https://admin.sign-in.service.gov.uk"
-  parameter=${PARAMETERS[use_stub_servicenow]}
+}
+
+function check-zendesk-params {
+  local parameter=${PARAMETERS[use_stub_zendesk]}
+  check-parameter-set "${parameter}" || write-parameter-value "$parameter" "true"
+
+  parameter=${PARAMETERS[zendesk_api_url]}
+  check-parameter-set "${parameter}" || write-parameter-value "$parameter" "https://govuk.zendesk.com/api/v2"
+
+  parameter=${PARAMETERS[zendesk_tag]}
+  check-parameter-set "${parameter}" || write-parameter-value "$parameter" "sign_in_service_teams"
+
+  parameter=${PARAMETERS[zendesk_tag_one_login_admin_tool]}
+  check-parameter-set "${parameter}" || write-parameter-value "$parameter" "self_service_admin"
+}
+
+function check-servicenow-params {
+  local parameter=${PARAMETERS[use_stub_servicenow]}
+  check-parameter-set "${parameter}" || write-parameter-value "$parameter" "false"
+}
+
+function check-jira-params {
+  local parameter=${PARAMETERS[enable_jira_integration]}
   check-parameter-set "${parameter}" || write-parameter-value "$parameter" "false"
 
-}
-
-# set secrets
-function check-secret {
-  local secret=$1
-  check-secret-set "$secret" || write-secret-value "$secret" "$(get-value-from-user "$secret" secret)"
-}
-
-function check-manual-secrets {
-  local secret
-  echo "--- check-manual-secrets ---"
-  for secret in "${MANUAL_SECRETS[@]}"; do check-secret "${SECRETS[$secret]}"; done
+  parameter=${PARAMETERS[use_stub_jira]}
+  check-parameter-set "${parameter}" || write-parameter-value "$parameter" "false"
 }
 
 # ============================
@@ -174,9 +205,16 @@ function check-deployment-parameters {
   # set secrets
   check-manual-secrets
 
-  # set param
-  check-frontend-params
+  # set manual parameters
   check-manual-parameters
+
+  # set default parameters
+  check-frontend-params
+  check-google-sheet-params
+  check-google-analytics-params
+  check-zendesk-params
+  check-servicenow-params
+  check-jira-params
 
   # Display
   print-parameters
