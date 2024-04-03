@@ -2,10 +2,10 @@
 cd "$(dirname "${BASH_SOURCE[0]}")"
 set -eu
 
-ACCOUNT=$(../aws.sh get-current-account-name)
+ACCOUNT=$(../scripts/aws.sh get-current-account-name)
 [[ $ACCOUNT =~ ^development|production$ ]] && ENV_TYPE=$ACCOUNT
-../aws.sh is-initial-account "$ACCOUNT" && INITIAL_ACCOUNT=true &&
-  DOWNSTREAM_ACCOUNTS=$(../aws.sh get-downstream-accounts "$ACCOUNT")
+../scripts/aws.sh is-initial-account "$ACCOUNT" && INITIAL_ACCOUNT=true &&
+  DOWNSTREAM_ACCOUNTS=$(../scripts/aws.sh get-downstream-accounts "$ACCOUNT")
 
 STACK_NAME=secure-pipelines-support
 GRAFANA_SECRET_NAME=/self-service/secure-pipelines/grafana-api-key

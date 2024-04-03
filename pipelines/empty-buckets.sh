@@ -30,7 +30,7 @@ function empty-bucket {
   delete-objects "$1" && delete-objects "$1" DeleteMarkers
 }
 
-../../aws.sh check-current-account
+../../scripts/aws.sh check-current-account
 [[ $* ]] || { list-buckets && exit; }
 [[ ${1:-} == loop ]] && loop=true && shift
 [[ $* == all ]] || filter=true

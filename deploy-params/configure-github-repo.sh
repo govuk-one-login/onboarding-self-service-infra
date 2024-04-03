@@ -19,7 +19,7 @@ function update-subject-claim-template {
 
 function update-deployment-environment {
   local env=$1 stack=$2 outputs=${*:3}
-  write-github-actions-variables "$env" "$(../aws.sh get-stack-outputs "$stack" "$outputs")"
+  write-github-actions-variables "$env" "$(../scripts/aws.sh get-stack-outputs "$stack" "$outputs")"
 }
 
 function check-deployment-environment-config {
@@ -30,7 +30,7 @@ function check-deployment-environment-config {
 
 function write-github-actions-variables {
   local env=$1 outputs=${*:2} repo_id api_path name variable value current_value
-  [[ $(xargs <<< "$outputs") ]] && ../aws.sh is-initial-account || exit 1
+  [[ $(xargs <<< "$outputs") ]] && ../scripts/aws.sh is-initial-account || exit 1
 
   repo_id=$(gh api "/repos/{owner}/{repo}" --jq .id)
   api_path=/repositories/$repo_id/environments/$env/variables
