@@ -3,7 +3,7 @@
 cd "$(dirname "${BASH_SOURCE[0]}")"
 set -eu
 
-ACCOUNT=$(../aws.sh get-current-account-name)
+ACCOUNT=$(../scripts/aws.sh get-current-account-name)
 PARAMETER_NAME_PREFIX=/product-pages
 MANUAL_PARAMETERS=(google_analytics_gtm_container_id universal_analytics_gtm_container_id)
 MANUAL_SECRETS=(zendesk_api_token zendesk_group_id zendesk_username register_spreadsheet_id vcap_services servicenow_auth_credentials servicenow_url)
@@ -15,8 +15,8 @@ declare -A PARAMETERS=(
   [register_sheet_header_range]=$PARAMETER_NAME_PREFIX/frontend/register-sheet-header-range
   [mailing_list_sheet_data_range]=$PARAMETER_NAME_PREFIX/frontend/mailing-list-sheet-data-range
   [mailing_list_sheet_header_range]=$PARAMETER_NAME_PREFIX/frontend/mailing-list-sheet-header-range
-  [prototype_access_sheet_data_range]=$PARAMETER_NAME_PREFIX/frontend/prototype-accecss-sheet-data-range
-  [prototype_access_sheet_header_range]=$PARAMETER_NAME_PREFIX/frontend/prototype-accecss-sheet-header-range
+  [prototype_access_sheet_data_range]=$PARAMETER_NAME_PREFIX/frontend/prototype-access-sheet-data-range
+  [prototype_access_sheet_header_range]=$PARAMETER_NAME_PREFIX/frontend/prototype-access-sheet-header-range
   [zendesk_api_url]=$PARAMETER_NAME_PREFIX/frontend/zendesk-api-url
   [zendesk_tag]=$PARAMETER_NAME_PREFIX/frontend/zendesk-tag
   [zendesk_tag_one_login_admin_tool]=$PARAMETER_NAME_PREFIX/frontend/zendesk-tag-one-login-admin-tool
@@ -200,7 +200,7 @@ function print-secrets {
 }
 
 function check-deployment-parameters {
-  ./aws.sh check-current-account
+  ../scripts/aws.sh check-current-account
 
   # set secrets
   check-manual-secrets

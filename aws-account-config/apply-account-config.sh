@@ -27,12 +27,12 @@ function logging {
 
 function domain {
   local account servers params
-  account=$(../aws.sh get-current-account-name)
+  account=$(../scripts/aws.sh get-current-account-name)
 
-  if [[ $(../aws.sh get-current-account-name) == production ]]; then
+  if [[ $(../scripts/aws.sh get-current-account-name) == production ]]; then
     echo "Getting subdomain name servers..."
     for account in development build staging integration; do
-      servers=$(gds aws di-onboarding-$account -- ../aws.sh get-stack-outputs domain-config HostedZoneNameServers) || continue
+      servers=$(gds aws di-onboarding-$account -- ../scripts/aws.sh get-stack-outputs domain-config HostedZoneNameServers) || continue
       params+=("${account@u}NameServers=$(jq --raw-output ".value" <<< "$servers")")
     done
   else

@@ -3,7 +3,7 @@
 cd "$(dirname "${BASH_SOURCE[0]}")"
 set -eu
 
-ACCOUNT=$(../aws.sh get-current-account-name)
+ACCOUNT=$(../scripts/aws.sh get-current-account-name)
 PARAMETER_NAME_PREFIX=/self-service
 MANUAL_PARAMETERS=(auth_base_url api_notification_email google_tag_id google_analytics_gtm_container_id universal_analytics_gtm_container_id)
 MANUAL_SECRETS=(auth_api_key notify_api_key)
@@ -180,7 +180,7 @@ function print-secrets {
 }
 
 function check-deployment-parameters {
-  ../aws.sh check-current-account
+  ../scripts/aws.sh check-current-account
 
   check-test-banner
   check-cognito-dr
