@@ -137,6 +137,14 @@ Resources:
                   - logs:CreateLogGroup
                   - logs:DeleteLogGroup
                   - logs:PutRetentionPolicy
+                  - logs:ListTagsForResource
+
+              - Effect: Allow
+                Resource: !Sub arn:aws:s3:${AWS::Region}:${AWS::AccountId}:*
+                Action:
+                  - s3:GetBucketTagging
+                  - s3:PutBucketTagging
+                  - s3:DeleteBucketTagging
 
               - Effect: Allow
                 Resource:
