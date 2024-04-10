@@ -153,7 +153,11 @@ function write-parameter-value {
 
 function write-secret-value {
   echo "Setting secret '$1'"
-  aws secretsmanager create-secret --name "$1" --secret-string "$(xargs <<< "$2")" > /dev/null
+  aws secretsmanager create-secret --kms-key-id "$(get-secret-key)" --name "$1" --secret-string "$(xargs <<< "$2")" > /dev/null
+}
+
+function get-secret-key {
+  echo "alias${PARAMETER_NAME_PREFIX}/${ACCOUNT}-secrets-key"
 }
 
 function get-value-from-user {
