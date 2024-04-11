@@ -6,7 +6,7 @@ set -eu
 ACCOUNT=$(../scripts/aws.sh get-current-account-name)
 PARAMETER_NAME_PREFIX=/product-pages
 MANUAL_PARAMETERS=(google_analytics_gtm_container_id universal_analytics_gtm_container_id)
-MANUAL_SECRETS=(zendesk_api_token zendesk_group_id zendesk_username register_spreadsheet_id vcap_services servicenow_auth_credentials servicenow_url)
+MANUAL_SECRETS=(zendesk_api_token zendesk_group_id zendesk_username register_spreadsheet_id vcap_services servicenow_auth_credentials servicenow_url jira_user_name jira_api_key)
 
 declare -A PARAMETERS=(
   [enable_google_sheets]=$PARAMETER_NAME_PREFIX/frontend/google-sheets-integration-enabled
@@ -48,7 +48,9 @@ declare -A SECRETS=(
   # servicenow
   [servicenow_auth_credentials]=$PARAMETER_NAME_PREFIX/frontend/servicenow-auth-credentials
   [servicenow_url]=$PARAMETER_NAME_PREFIX/frontend/servicenow-url
-
+  # jira
+  [jira_user_name]=$PARAMETER_NAME_PREFIX/frontend/jira-user-name
+  [jira_api_key]=$PARAMETER_NAME_PREFIX/frontend/jira-api-key
 )
 
 # ============================
