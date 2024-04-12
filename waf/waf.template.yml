@@ -1,9 +1,8 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
 Description: |
-  devplatform-deploy example-waf-bootstrap template version: v0.0.1
+  onboarding-infrastructure waf template version: v0.0.1
   CloudFormation template defines Web ACL resources.
-  Managed by dev-platform
 
 Parameters:
   Environment:
@@ -16,11 +15,29 @@ Parameters:
       - "staging"
       - "integration"
       - "production"
+  LocalName:
+    Description: Unique name used for ephemeral environments
+    Type: String
+    Default: ""
   Application:
     Description: "The application that the waf should protect."
     Type: "String"
     MaxLength : 22
     AllowedPattern: "^[a-zA-Z0-9-]+$"
+
+Rules:
+  LocalNameRequiredForLocalEnvironment:
+    RuleCondition: !Equals [ !Ref Environment, "local" ]
+    Assertions:
+      - Assert: !Not [ !Equals [ !Ref LocalName, "" ] ]
+        AssertDescription: >
+          Must specify LocalName when Environment is "local"
+  LocalNameEmptyForNotLocalEnvironment:
+    RuleCondition: !Not [ !Equals [ !Ref Environment, "local" ] ]
+    Assertions:
+      - Assert: !Equals [ !Ref LocalName, "" ]
+        AssertDescription: >
+          Must not specify LocalName when Environment is not "local"  
 
 Conditions:
   IsProdLikeEnvironment: !Or
@@ -41,16 +58,31 @@ Mappings:
     production:
       clslDestinationArn: arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2
 
+Outputs:
+  OnboardingWebAclArn:
+    Description: ARN of WebACL
+    Value: !GetAtt
+      - WebAcl
+      - Arn
+    Export:
+      Name: !Sub "${Application}-${Environment}${LocalName}-waf-acl-arn"
+  CloudwatchLogsGroupArn:
+    Description: ARN of CloudWatch Logs Group
+    Value: !GetAtt
+      - CloudwatchLogsGroup
+      - Arn
+    Export:
+      Name: !Sub "${Application}-${Environment}${LocalName}-waf-log-group"
+
 # If a rule exists in ExcludedRules, then it's action is set to Count, instead of the default action for that group.
 # To upgrade a rule to follow the group action, please comment it out, so that it becomes active.
-# @TODO We need to find a better way to set this up.
 
 Resources:
   WebAcl:
     Type: AWS::WAFv2::WebACL
     Properties:
-      Description: !Sub 'Web ACL for all ${Application} resources'
-      Name: !Sub '${Application}-webacl'
+      Description: !Sub "Web ACL for all ${Application} resources"
+      Name: !Sub "${Application}-${Environment}${LocalName}-webacl"
       DefaultAction:
         Allow: {}
 
@@ -72,7 +104,7 @@ Resources:
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
-            MetricName: !Sub '${Application}-aws-crs-metric'
+            MetricName: !Sub "${Application}-${Environment}${LocalName}-aws-crs-metric"
 
         - Name: Bad-Inputs # Allowed in non-production
           Priority: 11
@@ -88,7 +120,7 @@ Resources:
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
-            MetricName: !Sub '${Application}-bad-inputs-metric'
+            MetricName: !Sub "${Application}-${Environment}${LocalName}-bad-inputs-metric"
 
         - Name: AWS-AWSManagedRulesAdminProtectionRuleSet # Allowed in non-production
           Priority: 12
@@ -106,7 +138,7 @@ Resources:
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
-            MetricName: !Sub '${Application}-admin-protection-metric'
+            MetricName: !Sub "${Application}-${Environment}${LocalName}-admin-protection-metric"
 
         - Name: SqlInject-RuleSet # Allowed in non-production
           Priority: 20
@@ -122,7 +154,7 @@ Resources:
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
-            MetricName: !Sub '${Application}-sql-injection-metric'
+            MetricName: !Sub "${Application}-${Environment}${LocalName}-sql-injection-metric"
 
         - Name: Linux-RuleSet # Only counting
           Priority: 21
@@ -139,7 +171,7 @@ Resources:
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
-            MetricName: !Sub '${Application}-linux-metric'
+            MetricName: !Sub "${Application}-${Environment}${LocalName}-linux-metric"
 
         - Name: Unix-RuleSet # Only counting
           Priority: 22
@@ -155,7 +187,7 @@ Resources:
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
-            MetricName: !Sub '${Application}-unix-metric'
+            MetricName: !Sub "${Application}-${Environment}${LocalName}-unix-metric"
 
         - Name: GDS-IpList # Allowed in non-production
           Priority: 30
@@ -169,7 +201,7 @@ Resources:
               - Allow: { }
           VisibilityConfig:
             CloudWatchMetricsEnabled: TRUE
-            MetricName: !Sub "${Application}-gds-ip-hits-metric"
+            MetricName: !Sub "${Application}-${Environment}${LocalName}-gds-ip-hits-metric"
             SampledRequestsEnabled: FALSE
 
         - Name: Anonymous-IpList # Only counting
@@ -186,7 +218,7 @@ Resources:
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
-            MetricName: !Sub '${Application}-anonymous-ip-list-metric'
+            MetricName: !Sub "${Application}-${Environment}${LocalName}-anonymous-ip-list-metric"
 
         - Name: Reputation-IpList # Only counting
           Priority: 41
@@ -203,7 +235,7 @@ Resources:
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
-            MetricName: !Sub "${Application}-reputation-ip-list-metric"
+            MetricName: !Sub "${Application}-${Environment}${LocalName}-reputation-ip-list-metric"
 
         - Name: RateBased-CountIp-RuleSet # Only counting
           Priority: 50
@@ -215,17 +247,19 @@ Resources:
             Count: { }
           VisibilityConfig:
             CloudWatchMetricsEnabled: true
-            MetricName: !Sub "${Application}-rate-based-count-ip-metric"
+            MetricName: !Sub "${Application}-${Environment}${LocalName}-rate-based-count-ip-metric"
             SampledRequestsEnabled: true
 
       Scope: REGIONAL
       Tags:
         - Key: Name
-          Value: !Sub '${Application}'
+          Value: !Sub "${Application}"
+        - Key: Environment
+          Value: !Sub "${Environment}${LocalName}"
       VisibilityConfig:
         SampledRequestsEnabled: true
         CloudWatchMetricsEnabled: true
-        MetricName: !Sub '${Application}-metric'
+        MetricName: !Sub "${Application}-${Environment}${LocalName}-metric"
 
   # The IP address blocks below are referenced from here:
   # https://sites.google.com/a/digital.cabinet-office.gov.uk/gds/working-at-gds/gds-internal-it/gds-internal-it-network-public-ip-addresses
@@ -253,7 +287,7 @@ Resources:
     # checkov:skip=CKV_AWS_158:Ensure that CloudWatch Log Group is encrypted by KMS
     Type: AWS::Logs::LogGroup
     Properties:
-      LogGroupName: !Sub '/onboarding-infrastructure/audit/${Application}/waf'
+      LogGroupName: !Sub '/aws/cloudwatch/audit/${Application}/${Environment}${LocalName}/waf'
       RetentionInDays: 14
 
   CloudwatchLogsGroup:
@@ -261,17 +295,18 @@ Resources:
     Properties:
       LogGroupName: !Join
         - "-"
-        - - 'aws-waf-logs'
-          - 'onboarding'
+        - - "aws-waf-logs"
+          - "onboarding"
           - !Ref Application
-          - 'detected-requests'
+          - !Sub "${Environment}${LocalName}"
+          - "detected-requests"
       RetentionInDays: 30
       KmsKeyId:  !If
         - IsProdLikeEnvironment
         - !GetAtt WAFLoggingKmsKey.Arn
         - !Ref AWS::NoValue
       DataProtectionPolicy:
-        Name: !Sub "data-protection-policy-${Application}-waf-logs"
+        Name: !Sub "data-protection-policy-${Application}-${Environment}${LocalName}-waf-logs"
         Description: Data Protection for Cloudwatch Logs
         Version: '2021-06-01'
         Statement:
@@ -308,7 +343,7 @@ Resources:
     Type: AWS::Logs::SubscriptionFilter
     Properties:
       LogGroupName: !Ref CloudwatchLogsGroup
-      FilterName: !Sub "WAF logs for ${Application}"
+      FilterName: !Sub "WAF logs for ${Application} ${Environment}${LocalName}"
       FilterPattern: ""
       DestinationArn: !FindInMap [ PlatformConfiguration, !Ref Environment, clslDestinationArn ]
 
@@ -338,7 +373,7 @@ Resources:
     Type: AWS::SSM::Parameter
     Properties:
       Description: The ARN of webACL
-      Name: !Sub "/onboarding-infrastructure/waf/${Application}-acl-arn"
+      Name: !Sub "/${Application}/${Environment}${LocalName}/waf-web-acl"
       Type: String
       Value: !GetAtt
       - WebAcl
@@ -371,19 +406,3 @@ Resources:
             Condition:
               ArnLike:
                 "kms:EncryptionContext:aws:logs:arn": !Sub "arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*"
-
-Outputs:
-  OnboardingWebAclArn:
-    Description: ARN of WebACL
-    Value: !GetAtt
-      - WebAcl
-      - Arn
-    Export:
-      Name: !Sub "${Application}-waf-acl-arn"
-  CloudwatchLogsGroupArn:
-    Description: ARN of CloudWatch Logs Group
-    Value: !GetAtt
-      - CloudwatchLogsGroup
-      - Arn
-    Export:
-      Name: !Sub "${Application}-waf-log-group"

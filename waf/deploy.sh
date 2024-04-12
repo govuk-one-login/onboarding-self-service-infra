@@ -68,12 +68,14 @@ if [ -z "$APPLICATION" ]; then
   exit 1
 fi
 
-echo "Deploying secrets key for the application $APPLICATION in the $ENVIRONMENT environment..."
+echo "Deploying waf for the application $APPLICATION in the $ENVIRONMENT environment..."
 
 ${BASE_DIR}/../deploy-sam-stack.sh \
     --account $ENVIRONMENT \
     --build \
-    --stack-name "onboarding-infrastructure-secrets-key-$APPLICATION-$ENVIRONMENT${LOCAL_NAME:-}" \
-    --template "${BASE_DIR}/key.template.yml" \
-    --parameters Environment="$ENVIRONMENT" LocalName="${LOCAL_NAME:-''}" Application="$APPLICATION" \
-    --tags sse:component="onboarding-infrastructure-keys-$APPLICATION" sse:application=$APPLICATION sse:stack-type=infrastructure sse:stack-role=keys sse:deployment-source=manual
+    --stack-name "onboarding-infrastructure-waf-${APPLICATION}-$ENVIRONMENT${LOCAL_NAME:-}" \
+    --template "${BASE_DIR}/waf.template.yml" \
+    --manifest "${BASE_DIR}/package.json" \
+    --parameters Environment="${ENVIRONMENT}" Application="${APPLICATION}" \
+    --tags sse:component="onboarding-infrastructure-waf-${APPLICATION}" "sse:application=${APPLICATION}" sse:stack-type=infrastructure sse:stack-role=waf sse:deployment-source=manual
+
