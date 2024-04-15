@@ -187,7 +187,7 @@ Resources:
                   - logs:PutSubscriptionFilter
 
               - Effect: Allow
-                Resource: !Sub arn:aws:s3:${AWS::Region}:${AWS::AccountId}:*
+                Resource: !Sub arn:aws:s3:::*
                 Action:
                   - s3:GetBucketTagging
                   - s3:PutBucketTagging
