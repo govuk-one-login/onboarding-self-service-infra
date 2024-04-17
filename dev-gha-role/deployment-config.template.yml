@@ -193,10 +193,6 @@ Resources:
                   - s3:PutBucketTagging
                   - s3:DeleteBucketTagging
 
-              - Effect: Allow
-                Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${ServiceName}/frontend/google-sheet-credentials-*
-                Action: secretsmanager:GetSecretValue
-
   FrontendDeploymentPolicy:
     # checkov:skip=CKV_AWS_111:Ensure IAM policies does not allow write access without constraints
     Type: AWS::IAM::ManagedPolicy
@@ -323,19 +319,11 @@ Resources:
             Action: elasticloadbalancing:DeleteListener
 
           - Effect: Allow
-            Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${ServiceName}/frontend/session-secret-*
+            Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${ServiceName}/frontend/*
             Action: secretsmanager:GetSecretValue
 
           - Effect: Allow
-            Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${ServiceName}/frontend/google-sheet-credentials-*
-            Action: secretsmanager:GetSecretValue
-
-          - Effect: Allow
-            Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${ServiceName}/frontend/user-signup-sheet-id-*
-            Action: secretsmanager:GetSecretValue
-
-          - Effect: Allow
-            Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${ServiceName}/frontend/fixed-otp-*
+            Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/product-pages/frontend/*
             Action: secretsmanager:GetSecretValue
 
           - Effect: Allow
@@ -374,10 +362,6 @@ Resources:
               - logs:DeleteDataProtectionPolicy
               - logs:GetDataProtectionPolicy
               - logs:Unmask
-          - Effect: Allow
-            Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/product-pages/frontend/*
-            Action:
-              - secretsmanager:GetSecretValue
           - Effect: Allow
             Resource: !Sub arn:aws:ecs:${AWS::Region}:${AWS::AccountId}:service/*
             Action:
@@ -446,7 +430,7 @@ Resources:
               - logs:Unmask
 
           - Effect: Allow
-            Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${ServiceName}/api/client-registry-api-key-*
+            Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${ServiceName}/api/*
             Action: secretsmanager:GetSecretValue
 
           - Effect: Allow
@@ -674,7 +658,7 @@ Resources:
               - lambda:UpdateFunctionConfiguration
 
           - Effect: Allow
-            Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${ServiceName}/cognito/notify-api-key-*
+            Resource: !Sub arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:/${ServiceName}/cognito/*
             Action: secretsmanager:GetSecretValue
 
   DynamoDBDeploymentPolicy:
