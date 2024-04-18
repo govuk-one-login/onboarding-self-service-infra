@@ -50,7 +50,8 @@ Resources:
           "*.googleapis.com",
           "*.google.com",
           "govuk.zendesk.com",
-          "*.service-now.com"
+          "*.service-now.com",
+          "*.atlassian.net"
         ] ]
         AllowRules: !Sub >
           pass tls $HOME_NET any -> $EXTERNAL_NET 443 (tls.sni; content:"cognito-idp.${AWS::Region}.amazonaws.com";
@@ -73,6 +74,9 @@ Resources:
           
           pass tls $HOME_NET any -> $EXTERNAL_NET 443 (tls.sni; content:".service-now.com";
           endswith; msg:"Pass TLS to service-now"; flow:established; rev:1; sid:2007;)
+
+          pass tls $HOME_NET any -> $EXTERNAL_NET 443 (tls.sni; content:".atlassian.net";
+          endswith; msg:"Pass TLS to atlassian"; flow:established; rev:1; sid:2008;)
 
   AccessLogsBucket:
     # checkov:skip=CKV_AWS_18:Ensure the S3 bucket has access logging enabled
