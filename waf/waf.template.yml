@@ -356,7 +356,7 @@ Resources:
       LogDestinationConfigs:
         - !GetAtt CloudwatchLogsGroup.Arn
       LoggingFilter:
-        DefaultBehavior: DROP
+        DefaultBehavior: KEEP
         Filters:
           - Behavior: KEEP
             Conditions:
