@@ -49,8 +49,8 @@ declare -A SECRETS=(
   [servicenow_auth_credentials]=$PARAMETER_NAME_PREFIX/frontend/servicenow-auth-credentials
   [servicenow_url]=$PARAMETER_NAME_PREFIX/frontend/servicenow-url
   # jira
-  [jira_user_name]=$PARAMETER_NAME_PREFIX/frontend/jira-user-name
-  [jira_api_key]=$PARAMETER_NAME_PREFIX/frontend/jira-api-key
+  [jira_user_name]=$PARAMETER_NAME_PREFIX/frontend/jira-auth-user-name
+  [jira_api_key]=$PARAMETER_NAME_PREFIX/frontend/jira-auth-credentials
 )
 
 # ============================
