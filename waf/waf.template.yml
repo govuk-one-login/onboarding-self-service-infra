@@ -97,10 +97,7 @@ Resources:
                 - Name: EC2MetaDataSSRF_QUERYARGUMENTS
                 - Name: EC2MetaDataSSRF_BODY
           OverrideAction:
-            !If
-            - IsProdLikeEnvironment
-            - Count: { }
-            - None: { }
+            None: { }
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
@@ -113,10 +110,7 @@ Resources:
               VendorName: AWS
               Name: AWSManagedRulesKnownBadInputsRuleSet
           OverrideAction:
-            !If
-            - IsProdLikeEnvironment
-            - Count: { }
-            - None: { }
+            None: { }
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
@@ -131,10 +125,7 @@ Resources:
               ExcludedRules:
                 - Name: AdminProtection_URIPATH
           OverrideAction:
-            !If
-            - IsProdLikeEnvironment
-            - Count: { }
-            - None: { }
+            None: { }
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
@@ -147,10 +138,7 @@ Resources:
               VendorName: AWS
               Name: AWSManagedRulesSQLiRuleSet
           OverrideAction:
-            !If
-              - IsProdLikeEnvironment
-              - Count: { }
-              - None: { }
+            None: { }
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
@@ -195,10 +183,7 @@ Resources:
             IPSetReferenceStatement:
               Arn: !GetAtt Wafv2GdsIpSet.Arn
           Action:
-            !If
-              - IsProdLikeEnvironment
-              - Count: { }
-              - Allow: { }
+            Allow: { }
           VisibilityConfig:
             CloudWatchMetricsEnabled: TRUE
             MetricName: !Sub "${Application}-${Environment}${LocalName}-gds-ip-hits-metric"
