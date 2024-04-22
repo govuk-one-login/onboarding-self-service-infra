@@ -154,7 +154,7 @@ Resources:
             !If
             - IsProdLikeEnvironment
             - Count: { }
-            - Allow: { }
+            - None: { }
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
@@ -170,7 +170,7 @@ Resources:
             !If
             - IsProdLikeEnvironment
             - Count: { }
-            - Allow: { }
+            - None: { }
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
