@@ -150,12 +150,11 @@ Resources:
             ManagedRuleGroupStatement:
               VendorName: AWS
               Name: AWSManagedRulesLinuxRuleSet
-              ExcludedRules:
-                - Name: LFI_URIPATH
-                - Name: LFI_QUERYSTRING
-                - Name: LFI_HEADER
           OverrideAction:
-            None: { }
+            !If
+            - IsProdLikeEnvironment
+            - Count: { }
+            - Allow: { }
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
@@ -167,11 +166,11 @@ Resources:
             ManagedRuleGroupStatement:
               VendorName: AWS
               Name: AWSManagedRulesUnixRuleSet
-              ExcludedRules:
-                - Name: UNIXShellCommandsVariables_QUERYARGUMENTS
-                - Name: UNIXShellCommandsVariables_BODY
           OverrideAction:
-            None: { }
+            !If
+            - IsProdLikeEnvironment
+            - Count: { }
+            - Allow: { }
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
