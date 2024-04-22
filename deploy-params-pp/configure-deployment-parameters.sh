@@ -6,7 +6,7 @@ set -eu
 ACCOUNT=$(../scripts/aws.sh get-current-account-name)
 PARAMETER_NAME_PREFIX=/product-pages
 MANUAL_PARAMETERS=(google_analytics_gtm_container_id universal_analytics_gtm_container_id)
-MANUAL_SECRETS=(zendesk_api_token zendesk_group_id zendesk_username register_spreadsheet_id vcap_services servicenow_auth_credentials servicenow_url jira_user_name jira_api_key)
+MANUAL_SECRETS=(zendesk_api_token zendesk_group_id zendesk_username register_spreadsheet_id vcap_services servicenow_auth_credentials servicenow_url jira_api_key)
 
 declare -A PARAMETERS=(
   [enable_google_sheets]=$PARAMETER_NAME_PREFIX/frontend/google-sheets-integration-enabled
@@ -30,7 +30,9 @@ declare -A PARAMETERS=(
   [admin_tool_url]=$PARAMETER_NAME_PREFIX/frontend/admin-tool-url
   [show_test_banner]=$PARAMETER_NAME_PREFIX/frontend/show-test-banner
   [use_stub_servicenow]=$PARAMETER_NAME_PREFIX/frontend/use-stub-servicenow
+  # jira
   [enable_jira_integration]=$PARAMETER_NAME_PREFIX/frontend/jira-integration-enabled
+  [jira_user_name]=$PARAMETER_NAME_PREFIX/frontend/jira-auth-user-name
   [use_stub_jira]=$PARAMETER_NAME_PREFIX/frontend/use-stub-jira
 
 )
@@ -48,8 +50,6 @@ declare -A SECRETS=(
   # servicenow
   [servicenow_auth_credentials]=$PARAMETER_NAME_PREFIX/frontend/servicenow-auth-credentials
   [servicenow_url]=$PARAMETER_NAME_PREFIX/frontend/servicenow-url
-  # jira
-  [jira_user_name]=$PARAMETER_NAME_PREFIX/frontend/jira-auth-user-name
   [jira_api_key]=$PARAMETER_NAME_PREFIX/frontend/jira-auth-credentials
 )
 
@@ -132,6 +132,9 @@ function check-jira-params {
 
   parameter=${PARAMETERS[use_stub_jira]}
   check-parameter-set "${parameter}" || write-parameter-value "$parameter" "false"
+
+  parameter=${PARAMETERS[jira_user_name]}
+  check-parameter-set "${parameter}" || write-parameter-value "$parameter" "atlassian-service-account-jira-integration@digital.cabinet-office.gov.uk"
 }
 
 # ============================
