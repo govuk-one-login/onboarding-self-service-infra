@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
 # Apply infrastructure config to an AWS account
-cd "$(dirname "${BASH_SOURCE[0]}")"
+BASE_DIR="$(dirname "${BASH_SOURCE[0]}")"
+ROOT_DIR="${BASE_DIR}/.."
+
 set -eu -o pipefail
 
 function deploy-config-stack {
   local type=$1
 
-  ../deploy-sam-stack.sh "${@:2}" \
+  ${ROOT_DIR}/scripts/deploy-sam-stack.sh "${@:2}" \
     --validate \
     --stack-name "$type"-config \
     --template "$type/$type".template.yml \
@@ -23,23 +25,6 @@ function network {
 
 function logging {
   deploy-config-stack logging --tags sse:stack-role=logging "$@"
-}
-
-function domain {
-  local account servers params
-  account=$(../scripts/aws.sh get-current-account-name)
-
-  if [[ $(../scripts/aws.sh get-current-account-name) == production ]]; then
-    echo "Getting subdomain name servers..."
-    for account in development build staging integration; do
-      servers=$(gds aws di-onboarding-$account -- ../scripts/aws.sh get-stack-outputs domain-config HostedZoneNameServers) || continue
-      params+=("${account@u}NameServers=$(jq --raw-output ".value" <<< "$servers")")
-    done
-  else
-    params=(Subdomain="$account.")
-  fi
-
-  deploy-config-stack domain --tags sse:stack-role=dns ${params:+--parameters ${params[@]}} "$@"
 }
 
 "$@"

@@ -1,6 +1,9 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: The keys for encrypting application secrets in each environment.
+Description: >
+  The keys for encrypting application secrets in each environment.
+  Deploys a KMS key to use for encrypting secrets for each application, each application should have its own key.
+  Only lambda and ecs services will be able to decrypt with the key through AWS Secrets Manager.
 
 Parameters:
   Environment:

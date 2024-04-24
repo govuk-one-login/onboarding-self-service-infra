@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
+BASE_DIR="$(dirname "${BASH_SOURCE[0]}")"
+ROOT_DIR="${BASE_DIR}/.."
+
 set -eu
 
-template="$(dirname "${BASH_SOURCE[0]}")/github-actions-aws-config.yml"
+template="${BASE_DIR}/github-actions-aws-config.yml"
 
 sam validate --template "$template"
 sam validate --template "$template" --lint

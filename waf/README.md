@@ -29,7 +29,7 @@ This component should be deployed for the appropriate application (set `$APPLICA
 ```
 export APPLICATION='product-pages'
 export ENVIRONMENT='development'
-./deploy-sam-stack.sh \
+./scripts/deploy-sam-stack.sh \
     --account $ENVIRONMENT \
     --build \
     --stack-name onboarding-infrastructure-waf-$APPLICATION \

@@ -4,10 +4,10 @@ BASE_DIR="$(dirname "${BASH_SOURCE[0]}")"
 set -e
 
 OPTION_REGEX="^--?.*"
-BUILD=false
+BUILD=false\
 DEPLOY=true
 
-while [[ -n $1 ]]; do
+while [[ -n "$1" ]]; do
   case $1 in
     -n | --stack-name)
       [[ -z ${2:-} || $2 =~ $OPTION_REGEX ]] && echo "Invalid stack name: '$2'" && exit 1
@@ -25,6 +25,7 @@ while [[ -n $1 ]]; do
       ;;
     -s3 | --prefix | --s3-prefix) shift && S3_PREFIX=$1 ;;
     -f | --template | --template-file) shift && TEMPLATE=$1 && VALIDATE=true ;;
+    -u | --template-url) shift && TEMPLATE_URL=$1 && VALIDATE=false ;;
     -m | --manifest) shift && MANIFEST=$1 ;;
     -a | --account) shift && ACCOUNT=$1 ;;
     -s | --base-dir) shift && SAM_BASE_DIR=$1 ;;
@@ -46,7 +47,7 @@ while [[ -n $1 ]]; do
   shift
 done
 
-$DEPLOY && ! "$BASE_DIR"/scripts/aws.sh check-current-account "${ACCOUNT:-}" 2> /dev/null &&
+$DEPLOY && ! ${BASE_DIR}/scripts/aws.sh check-current-account "${ACCOUNT:-}" 2> /dev/null &&
   echo "Authenticate to${ACCOUNT:+" the '$ACCOUNT' account in"} AWS before deploying the stack" && exit 1
 
 [[ $TEMPLATE ]] && ! [[ -f $TEMPLATE ]] && echo "File '$TEMPLATE' does not exist" && exit 1
@@ -78,6 +79,7 @@ if $BUILD; then
   echo "Building${TEMPLATE:+" template '$TEMPLATE'"}..."
   sam build \
     ${TEMPLATE:+--template $TEMPLATE} \
+    ${TEMPLATE_URL:+--template-url "$TEMPLATE_URL"} \
     ${MANIFEST:+--manifest $MANIFEST} \
     ${SAM_BASE_DIR:+--base-dir $SAM_BASE_DIR} \
     ${PARALLEL:+--parallel} \
@@ -102,6 +104,7 @@ sam deploy \
   --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM CAPABILITY_AUTO_EXPAND \
   ${CONFIRM_OPTION:---confirm-changeset} \
   ${TEMPLATE:+--template "$TEMPLATE"} \
+  ${TEMPLATE_URL:+--template-url "$TEMPLATE_URL"} \
   ${FORCE_UPLOAD:+--force-upload} \
   ${TAGS:+--tags "${TAGS[@]}"} \
   ${PARAMS:+--parameter-overrides "${PARAMS[@]}"} \

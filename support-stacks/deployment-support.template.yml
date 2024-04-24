@@ -16,25 +16,24 @@ Parameters:
     Type: String
     Default: No
     AllowedValues: [ Yes, No ]
-  EnvironmentType:
+  Environment:
+    Description: The environment type
     Type: String
-    Default: test
-    AllowedValues: [ development, test, production ]
+    Default: development
+    AllowedValues:
+      - "development"
+      - "build"
+      - "staging"
+      - "integration"
+      - "production"
   DownstreamAccounts:
     Type: String
     Default: ""
-  GrafanaKeySecretName:
-    Type: String
-    Default: /self-service/secure-pipelines/grafana-api-key
   DeveloperNotificationsEmail:
     Type: AWS::SSM::Parameter::Value<String>
     Default: /self-service/secure-pipelines/developer-notification-email
 
 Mappings:
-  Grafana:
-    Env:
-      production: prod
-      default: non-prod
   Slack:
     Channel:
       development: C04QFSGKCGG    # di-sse-dev-notifications
@@ -42,7 +41,7 @@ Mappings:
 
 Conditions:
   InitialAccount: !Equals [ !Ref InitialAccount, Yes ]
-  DevelopmentAccount: !Equals [ !Ref EnvironmentType, development ]
+  DevelopmentAccount: !Equals [ !Ref Environment, development ]
   InitialProductionAccount: !And [ !Condition InitialAccount, !Not [ !Condition DevelopmentAccount ] ]
 
 Resources:
@@ -71,25 +70,6 @@ Resources:
       Parameters:
         System: Dev Platform
 
-  GrafanaMetrics:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: !Sub ${TemplateStorageBucket}/grafana-metrics/template.yaml
-      Parameters:
-        GrafanaEnvironment: !FindInMap [ Grafana, Env, !Ref EnvironmentType, { DefaultValue: !FindInMap [ Grafana, Env, default ] } ]
-
-  # Setting up Grafana key rotation
-  # https://govukverify.atlassian.net/wiki/spaces/PLAT/pages/3467509761/Grafana+key+rotation
-  # https://team-manual.account.gov.uk/development-standards-processes/aws-environment-grafana/
-  GrafanaKeyRotator:
-    Type: AWS::CloudFormation::Stack
-    DependsOn: InfrastructureAuditHook
-    Properties:
-      TemplateURL: !Sub ${TemplateStorageBucket}/grafana-key-rotation/template.yaml
-      Parameters:
-        GrafanaEnvironment: !FindInMap [ Grafana, Env, !Ref EnvironmentType, { DefaultValue: !FindInMap [ Grafana, Env, default ] } ]
-        GrafanaKeySecretId: !Ref GrafanaKeySecretName
-
   SlackNotifications:
     Type: AWS::CloudFormation::Stack
     DependsOn: InfrastructureAuditHook
@@ -97,7 +77,7 @@ Resources:
       TemplateURL: !Sub ${TemplateStorageBucket}/build-notifications/template.yaml
       Parameters:
         SlackWorkspaceId: T8GT9416G
-        SlackChannelId: !FindInMap [ Slack, Channel, !Ref EnvironmentType, { DefaultValue: !FindInMap [ Slack, Channel, default ] } ]
+        SlackChannelId: !FindInMap [ Slack, Channel, !Ref Environment, { DefaultValue: !FindInMap [ Slack, Channel, default ] } ]
 
   ECRScanningNotifications:
     Type: AWS::CloudFormation::Stack

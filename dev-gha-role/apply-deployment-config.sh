@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
-cd "$(dirname "${BASH_SOURCE[0]}")"
+BASE_DIR="$(dirname "${BASH_SOURCE[0]}")"
+ROOT_DIR="${BASE_DIR}/.."
 set -eu
 
 STACK_NAME=deployment-config
 
-../deploy-sam-stack.sh "$@" \
+${ROOT_DIR}/scripts/deploy-sam-stack.sh "$@" \
   --validate \
   --account development \
   --stack-name $STACK_NAME \
@@ -12,5 +13,5 @@ STACK_NAME=deployment-config
   --tags sse:stack-type=config sse:stack-role=deployment \
   --params GitHubOrg=govuk-one-login GitHubRepo=onboarding-self-service-experience
 
-../configure-github-repo.sh update-deployment-environment development $STACK_NAME \
+${ROOT_DIR}/scripts/configure-github-repo.sh update-deployment-environment development $STACK_NAME \
   DeploymentRoleARN DeploymentArtifactsBucket FrontendContainerImageRepository
