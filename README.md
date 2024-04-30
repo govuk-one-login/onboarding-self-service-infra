@@ -6,6 +6,7 @@ Infrastructure for deploying and monitoring the self-service applications. Addit
 
 To run this project you will need the following:
 
+- [aws sso](https://docs.aws.amazon.com/cli/latest/userguide/sso-configure-profile-token.html) - Configured to automatically retrieve authentication tokens
 - [SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html) - Used to build and deploy the application
 - [Node.js](https://nodejs.org/en/) version 18 - Recommended way to install is via [NVM](https://github.com/nvm-sh/nvm)
 
@@ -15,13 +16,4 @@ To run this project you will need the following:
 
 ### Structure
 
-All orchestration components should live within their own directory within one of these parent directories:
-
-- `/containers` - for a docker images
-- `/infrastructure` - for general infrastructure components
-- `/monitoring` - for any components related to observability and monitoring
-- `/pipelines` - for all stacks that describe a secure deployment pipeline
-
-The stack name prefix for these components should be consistent across all these categories. 
-
-Utility scripts should be placed in the `/scripts` directory.
+Utility scripts that are required by more than one component should be placed in the `/scripts` directory.

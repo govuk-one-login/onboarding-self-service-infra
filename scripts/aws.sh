@@ -4,125 +4,157 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 set -eu
 
 function get-all-accounts {
-  jq 'flatten | .[]' aws-accounts.json
+  jq 'keys' aws-accounts.json
 }
 
-function get-account-group {
-  jq --arg name "$1" 'with_entries(select(.value | contains([{name: $name}]))) | flatten' aws-accounts.json
+# Get all the accounts in a given pipeline group.
+function get-grouped-accounts {
+  local name=${1:-$(get-current-account-name)}
+  local group=$(get-pipeline-group "$name")
+
+  jq -r --arg group "$group" '.[] | select(.group==$group) | .name' aws-accounts.json
 }
 
-function get-account-group-name {
-  jq --raw-output --arg name "$1" 'to_entries | .[] | select(.value | contains([{name: $name}])) | .key' aws-accounts.json
+# Get the pipeline group provided the account name.
+function get-pipeline-group {
+  local name=${1:-$(get-current-account-name)}
+  local pipeline_group=$(jq -r --arg name "$name" '.[] | select(.name==$name) | .group' aws-accounts.json)
+
+  [[ ! -z "$pipeline_group" ]] && echo $pipeline_group || return 1
 }
 
-function get-accounts-in-group {
-  jq --raw-output ".$1[].number" aws-accounts.json 2> /dev/null
-}
+# Get all accounts downstream from the initial account.
+function get-all-downstream-accounts {
+  local name=${1:-$(get-current-account-name)}
+  local format=${2:-"array"}
+  local initial_account=$(get-initial-account "$name")
+  local group=$(get-pipeline-group "$name")
 
-function get-account-number {
-  jq --exit-status --arg name "$1" 'select(.name == $name) | .number' < <(get-all-accounts)
-}
+  local downstream_accounts=$(jq -r --arg name "$initial_account" --arg group "$group" 'map(select((.name==$name|not) and .group==$group) | .name)' aws-accounts.json)
 
-function get-initial-account {
-  jq --raw-output '.[0] | .name' < <(get-account-group "$1")
+  local output=$([[ "$format" == "string" ]] && jq -r 'join(",")' <<< $downstream_accounts || jq -r '.[]' <<< $downstream_accounts)
+  [[ -n "$downstream_accounts" ]] && [[ "${downstream_accounts}" != "null" ]] && echo $output || return 1
 }
 
 function is-initial-account {
   local name=${1:-$(get-current-account-name)}
-  [[ ${1:-} ]] || echo "$name"
-  [[ $name == $(get-initial-account "$name") ]]
+  local is_initial_account
+
+  [[ "$name" != $(get-initial-account "$name") ]] && is_initial_account=true && is_initial_account=false
 }
 
-function get-next-account {
-  get-higher-accounts-in-group "$1" 1
+# Get the initial account provided the account name.
+function get-initial-account {
+  local name=${1:-$(get-current-account-name)}
+  local initial_account=$(jq -r --arg name "$name" '.[] | select(.name==$name) | .initial' aws-accounts.json 2> /dev/null)
+
+  [[ ! -z "$initial_account" ]] && echo $initial_account || return 1
 }
 
-function get-previous-account-name {
-  local name=$1 accounts
-  accounts=$(get-account-group "$name")
-  idx=$(get-account-index-in-group "$accounts" "$name") || return 0
-  jq --raw-output --exit-status ".[$((idx - 1)):$idx] | map(.name) | .[]" <<< "$accounts" || return 0
+# Get the upstream account provided the account name.
+function get-upstream-account {
+  local name=${1:-$(get-current-account-name)}
+  local upstream_account=$(jq -r --arg name "$name" '.[] | select(.name==$name) | .upstream' aws-accounts.json 2> /dev/null)
+
+  [[ -n "$upstream_account" ]] && [[ "${upstream_account}" != "null" ]] && echo $upstream_account || return 1
 }
 
+# Get the downstream accounts provided the account name.
 function get-downstream-accounts {
-  is-initial-account "$1" && get-higher-accounts-in-group "$1"
+  local name=${1:-$(get-current-account-name)}
+  local format=${2:-"array"}
+  local downstream_accounts=$(jq -r --arg name "$name" '.[] | select(.name==$name) | .downstream' aws-accounts.json 2> /dev/null)
+
+  local output=$([[ "$format" == "string" ]] && jq -r 'join(",")' <<< $downstream_accounts || jq -r '.[]' <<< $downstream_accounts)
+  [[ -n "$downstream_accounts" ]] && [[ "${downstream_accounts}" != "null" ]] && echo $output || return 1
 }
 
-function get-account-index-in-group {
-  jq --exit-status --arg name "$2" 'map(.name == $name) | index(true)' <<< "$1"
+# Get the account number provided the account name.
+function get-account-number {
+  local name=${1:-$(get-current-account-name)}
+  local account_number=$(jq -r --arg name "$name" '.[] | select(.name==$name) | .account' aws-accounts.json 2> /dev/null)
+
+  [[ ! -z "$account_number" ]] && echo $account_number || return 1
 }
 
-function get-higher-accounts-in-group {
-  local accounts numbers idx name=$1 num=${2:-}
-  accounts=$(get-account-group "$name")
-  idx=$(get-account-index-in-group "$accounts" "$name") || return 0
+# Get the account name provided the account number.
+function get-account-name {
+  local account=${1:-$(get-current-account-number)}
+  local account_name=$(jq -r --arg account "$account" '.[] | select(.account==($account|tonumber)) | .name' aws-accounts.json 2> /dev/null)
 
-  start=$((idx + 1))
-  [[ $num ]] && end=$(("$start" + "$num"))
-  downstream_accounts=$(jq --exit-status ".[$start:${end:-}] | map(.number) | .[]" <<< "$accounts") || return 0
-
-  mapfile -t numbers <<< "$downstream_accounts"
-  (IFS="," && echo "${numbers[*]}")
+  [[ ! -z "$account_name" ]] && echo $account_name || return 1
 }
 
-function get-current-account-name {
-  local account_number account
-  account_number=$(get-current-account-number "$@") || exit
-  account=$(jq --raw-output "select(.number == $account_number) | .name" < <(get-all-accounts))
-  [[ $account ]] && echo "$account" && return
-  echo "Unknown account number: $account_number" >&2 && return 1
+# Get the aws profile configured for a given account number.
+function get-account-profile {
+  local account=${1:-$(get-current-account-number)}
+  local role="di-onboarding-${2:-readonly}" # Use readonly roles unless specified.
+
+  for p in $(aws configure list-profiles); do
+    local profile=$(aws --profile "$p" sts get-caller-identity 2> /dev/null)
+    if [[ $(jq -r ".Account" <<< "$profile") == "$account" ]] \
+    && [[ $(jq -r ".Arn" <<< "$profile") =~ "$role" ]]
+    then
+      echo $p
+      break
+    fi
+  done
 }
 
+# Get caller identity.
 function get-caller-identity {
-  aws sts get-caller-identity 2> /dev/null && return
+  local aws_account=$(aws sts get-caller-identity --output text --query "Account" 2> /dev/null)
+  local identity=$(aws sts get-caller-identity)
+  
+  # Only return the caller identity if the account was valid.
+  [[ -n "$aws_account" ]] && [[ -n $(jq -r ".Account" <<< "$identity") ]] && echo $identity && return
 
-  local target=${1:-}
   echo "Valid AWS credentials were not found in the environment" >&2
-  echo "Authenticate to${target:+" the '$target' account in"} AWS and try again" >&2
+  echo "Authenticate with AWS using SSO and try again" >&2
+  echo "https://govukverify.atlassian.net/l/cp/rq8xkV2B" >&2
   return 255
 }
 
-function get-current-account-number {
-  local identity
-  identity=$(get-caller-identity "$@") || exit
-  jq --raw-output ".Account" <<< "$identity"
-}
-
-function get-user-name {
-  [[ $(get-caller-identity "$@" | jq --raw-output ".Arn") =~ assumed-role\/([a-zA-z.]+) ]] && echo "${BASH_REMATCH[1]}"
-}
-
+# Verify the user has access
 function check-current-account {
-  local account target=${1:-}
-  account=$(get-current-account-name "$target")
-
-  if [[ $target ]]; then
-    if ! jq --exit-status --slurp --arg name "$target" '.[] | select(.name == $name)' < <(get-all-accounts) 1> /dev/null; then
-      echo "Invalid account: '$target'" >&2
-      return 1
-    fi
-
-    if ! [[ $account == "$target" ]]; then
-      echo "You should be in '$target' but you're in '$account'"
-      echo "Authenticate to the '$target' account and try again" >&2
-      return 1
-    fi
-  fi
-
-  echo "» You're in the '$account' account"
+  [[ get-caller-identity > /dev/null ]] && echo true || echo false
 }
 
+# Get the account number for the active account.
+function get-current-account-number {
+  local identity=$(get-caller-identity)
+  jq -r ".Account" <<< "$identity"
+}
+
+# Get the account name for the active account.
+function get-current-account-name {
+  local account=$(get-current-account-number)
+  get-account-name $account
+}
+
+# Get the user name of the current user.
+function get-user-name {
+  local identity=$(get-caller-identity) || exit
+  local arn=$(jq -r ".Arn" <<< "$identity")
+  [[ $arn =~ assumed-role\/([0-9a-zA-z._-]+)\/([0-9a-zA-z._-]+) ]] && echo "${BASH_REMATCH[2]}"
+}
+
+# Get outputs from another cloudformation stack.
 function get-stack-outputs {
-  local stack=$1 selectors=${*:2} selector query outputs
+  local stack=$1
+  local selectors=${*:2}
+  local query
 
   for selector in $selectors; do
     query+="${query:+ || }contains(OutputKey, '$selector')"
   done
 
-  query=${query:+?${query}}
-  outputs=$(aws cloudformation describe-stacks --stack-name "$stack" --query "Stacks[0].Outputs[$query]" 2> /dev/null)
+  local query=${query:+?${query}}
+  local outputs=$(aws cloudformation describe-stacks --stack-name "$stack" --query "Stacks[0].Outputs[$query]" 2> /dev/null)
   [[ $outputs != null ]] && [[ $outputs != "[]" ]] && jq 'map({name: .OutputKey, value: .OutputValue}) | .[]' <<< "$outputs"
 }
 
-[[ $* ]] || check-current-account "$@"
+# Check caller identity first.
+[[ $* ]] || check-current-account
+# Run the appropriate commands.
 [[ $* ]] && "$@"

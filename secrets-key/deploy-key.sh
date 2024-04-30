@@ -2,6 +2,7 @@
 
 # Utility script to deploy secrets-key stack
 BASE_DIR="$(dirname "${BASH_SOURCE[0]}")"
+ROOT_DIR="${BASE_DIR}/.."
 
 set -e
 set -o pipefail
@@ -9,6 +10,8 @@ set -o pipefail
 usage() {
   cat << 'EOF'
 This script deploys the KMS keys required to create secrets for each application.
+
+Run this script once for each application in each environment.
 
 Usage:
     -e      --environment       The environment to deploy into, should be one of:
@@ -70,7 +73,7 @@ fi
 
 echo "Deploying secrets key for the application $APPLICATION in the $ENVIRONMENT environment..."
 
-${BASE_DIR}/../deploy-sam-stack.sh \
+${ROOT_DIR}/scripts/deploy-sam-stack.sh \
     --account $ENVIRONMENT \
     --build \
     --stack-name "onboarding-infrastructure-secrets-key-$APPLICATION-$ENVIRONMENT${LOCAL_NAME:-}" \

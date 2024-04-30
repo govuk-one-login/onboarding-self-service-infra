@@ -1,28 +1,37 @@
 {
-  "development": [
-    {
-      "name": "development",
-      "number": 494650018671
-    }
-  ],
-  "testing": [
-    {
-      "name": "build",
-      "number": 399055180839
-    },
-    {
-      "name": "staging",
-      "number": 325730373996
-    },
-    {
-      "name": "integration",
-      "number": 663985455444
-    }
-  ],
-  "production": [
-    {
-      "name": "production",
-      "number": 389946456390
-    }
-  ]
+  "development": {
+    "name": "development",
+    "group": "development",
+    "account": 494650018671,
+    "initial": "development"
+  },
+  "build": {
+    "name": "build",
+    "group": "production",
+    "account": 399055180839,
+    "initial": "build",
+    "downstream": ["staging"]
+  },
+  "staging": {
+    "name": "staging",
+    "group": "production",
+    "account": 325730373996,
+    "initial": "build",
+    "upstream": "build",
+    "downstream": ["integration","production"]
+  },
+  "integration": {
+    "name": "integration",
+    "group": "production",
+    "account": 663985455444,
+    "initial": "build",
+    "upstream": "staging"
+  },
+  "production": {
+    "name": "production",
+    "group": "production",
+    "account": 389946456390,
+    "initial": "build",
+    "upstream": "staging"
+  }
 }

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Empty secure pipeline buckets so they can be deleted
-cd "$(dirname "${BASH_SOURCE[0]}")"
+BASE_DIR="$(dirname "${BASH_SOURCE[0]}")"
 STEP=1000
 set -eu
 
@@ -30,7 +30,7 @@ function empty-bucket {
   delete-objects "$1" && delete-objects "$1" DeleteMarkers
 }
 
-../../scripts/aws.sh check-current-account
+${BASE_DIR}/aws.sh check-current-account
 [[ $* ]] || { list-buckets && exit; }
 [[ ${1:-} == loop ]] && loop=true && shift
 [[ $* == all ]] || filter=true

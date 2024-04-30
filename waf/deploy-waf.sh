@@ -70,7 +70,7 @@ fi
 
 echo "Deploying waf for the application $APPLICATION in the $ENVIRONMENT environment..."
 
-${BASE_DIR}/../deploy-sam-stack.sh \
+${BASE_DIR}/../scripts/deploy-sam-stack.sh \
     --account $ENVIRONMENT \
     --build \
     --stack-name "onboarding-infrastructure-waf-${APPLICATION}-$ENVIRONMENT${LOCAL_NAME:-}" \
