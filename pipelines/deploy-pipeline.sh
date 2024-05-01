@@ -105,14 +105,24 @@ function get-signing-config {
   [[ -n "$output_params" ]] && signing_profile=$(get-param "$output_params" SigningProfileARN) || signing_profile="none"
   [[ -n "$output_params" ]] && signing_profile_version=$(get-param "$output_params" SigningProfileVersionARN) || signing_profile_version="none"
   [[ -n "$output_params" ]] && container_signing_key=$(get-param "$output_params" ContainerSigningKeyARN) || container_signing_key="none"
-
-  [[ -n "$output_params" ]] && slack_notification_stack=$(get-param "$output_params" SlackNotificationsStackName) || slack_notification_stack="none"
 }
 
 # The additional signing configuration.
 function get-additional-signing-config {
   additional_code_signing_arns="arn:aws:signer:eu-west-2:216552277552:/signing-profiles/DynatraceSigner/5uwzCCGTPq"
   custom_kms_key_arns="arn:aws:kms:eu-west-2:216552277552:key/4bc58ab5-c9bb-4702-a2c3-5d339604a8fe"
+}
+
+# The support configuration from the current account.
+function get-support-config {
+  local account=$(${ROOT_DIR}/scripts/aws.sh get-account-name)
+
+  local output_params=$(aws cloudformation describe-stacks \
+    --stack-name "$SUPPORT_STACK_NAME" --query "Stacks[0].Outputs[]" 2> /dev/null)
+
+  # The environment value for the development account is actually 'dev'.
+  [[ $account == "development" ]] && environment="dev" || environment=$account
+  [[ -n "$output_params" ]] && slack_notification_stack=$(get-param "$output_params" SlackNotificationsStackName) || slack_notification_stack="none"
 }
 
 # The source configuration must come from the upstream account.
@@ -135,14 +145,18 @@ function get-source-config {
 # The promotion configuration must come only if there are downstream accounts.
 function get-promotion-config {
   local account=$(${ROOT_DIR}/scripts/aws.sh get-account-name)
-  local downstream_account_array=$(${ROOT_DIR}/scripts/aws.sh get-downstream-accounts)
-  for a in "${downstream_account_array[@]}"; do
-    downstream_account_numbers+=($(${ROOT_DIR}/scripts/aws.sh get-account-number $a))
-  done
+  downstream=($(${ROOT_DIR}/scripts/aws.sh get-downstream-accounts))
 
-  downstream_accounts=$(${ROOT_DIR}/scripts/aws.sh get-downstream-accounts $account string)
-  [[ -n $downstream_accounts ]] && include_promotion="Yes" || include_promotion="No"
-  [[ -n $downstream_accounts ]] && notification_type="Failures" || notification_type="All"
+  if ! [[ -z "${downstream[*]}" ]]; then
+    # Convert the downstream account names into account numbers
+    for a in "${downstream[@]}"; do
+      local downstream_account_numbers+=($(${ROOT_DIR}/scripts/aws.sh get-account-number $a))
+    done
+  fi
+
+  ! [[ -z "${downstream[*]}" ]] && downstream_accounts="$(IFS=,; echo "${downstream_account_numbers[*]}")" || downstream_accounts=""
+  ! [[ -z "${downstream[*]}" ]] && include_promotion="Yes" || include_promotion="No"
+  ! [[ -z "${downstream[*]}" ]] && notification_type="Failures" || notification_type="All"
 }
 
 # The additional services that can be deployed by this deployment pipeline.
@@ -170,6 +184,8 @@ function update-github {
 # Deploy the pipeline to a given environment.
 function deploy {
   local account_name="${1:-}"
+  [[ -z $account_name ]] && return 1
+
   local account=$(${ROOT_DIR}/scripts/aws.sh get-account-number "$account_name")
   local is_initial_account=$(${ROOT_DIR}/scripts/aws.sh is-initial-account "$account")
   local AWS_PROFILE=$(${ROOT_DIR}/scripts/aws.sh get-account-profile "$account" "admin")
@@ -177,10 +193,11 @@ function deploy {
   echo "Deploying the pipeline to $account_name"
 
   get-supported-services
+  get-support-config
   get-initial-account-config
   get-promotion-config
-  get-source-config # Only for downstream accounts.
-  get-signing-config # Only for downstream accounts.
+  get-source-config
+  get-signing-config
   get-additional-signing-config
   # TODO GET VPC STACK
 
@@ -188,39 +205,41 @@ function deploy {
   ${ROOT_DIR}/scripts/deploy-cfn-stack.sh \
     --stack-name "${PIPELINE_STACK_NAME}" \
     --template-url "${PIPELINE_STACK}" \
+    --tags ${TAGS[@]} \
     --parameters \
-        ParameterKey=Environment,ParameterValue="$account_name" \
-        ${STACK_NAME:+ParameterKey=SAMStackName,ParameterValue="$STACK_NAME"} \
+        ParameterKey=Environment,ParameterValue="'$environment'" \
+        ${STACK_NAME:+ParameterKey=SAMStackName,ParameterValue="'$STACK_NAME'"} \
         ParameterKey=IncludePromotion,ParameterValue="${include_promotion:-'No'}" \
-        ${downstream_accounts:+ParameterKey=AllowedAccounts,ParameterValue="$downstream_account_numbers"} \
-        ${signing_profile:+ParameterKey=SigningProfileArn,ParameterValue="$signing_profile"} \
-        ${signing_profile_version:+ParameterKey=SigningProfileVersionArn,ParameterValue="$signing_profile_version"} \
-        ${container_signing_key:+ParameterKey=ContainerSignerKmsKeyArn,ParameterValue="$container_signing_key"} \
-        ${additional_code_signing_arns:+ParameterKey=AdditionalCodeSigningVersionArns,ParameterValue="$additional_code_signing_arns"} \
-        ${custom_kms_key_arns:+ParameterKey=CustomKmsKeyArns,ParameterValue="$custom_kms_key_arns"} \
-        ${source_bucket:+ParameterKey=ArtifactSourceBucketArn,ParameterValue="$source_bucket"} \
-        ${source_event_trigger_role:+ParameterKey=ArtifactSourceBucketEventTriggerRoleArn,ParameterValue="$source_event_trigger_role"} \
-        ${repository_name:+ParameterKey=OneLoginRepositoryName,ParameterValue="$repository_name"} \
-        ${slack_notification_stack:+ParameterKey=BuildNotificationStackName,ParameterValue="$slack_notification_stack"} \
-        ${notification_type:+ParameterKey=SlackNotificationType,ParameterValue="$notification_type"} \
+        ${downstream_accounts:+ParameterKey=AllowedAccounts,ParameterValue="'$downstream_accounts'"} \
+        ${signing_profile:+ParameterKey=SigningProfileArn,ParameterValue="'$signing_profile'"} \
+        ${signing_profile_version:+ParameterKey=SigningProfileVersionArn,ParameterValue="'$signing_profile_version'"} \
+        ${container_signing_key:+ParameterKey=ContainerSignerKmsKeyArn,ParameterValue="'$container_signing_key'"} \
+        ${additional_code_signing_arns:+ParameterKey=AdditionalCodeSigningVersionArns,ParameterValue="'$additional_code_signing_arns'"} \
+        ${custom_kms_key_arns:+ParameterKey=CustomKmsKeyArns,ParameterValue="'$custom_kms_key_arns'"} \
+        ${source_bucket:+ParameterKey=ArtifactSourceBucketArn,ParameterValue="'$source_bucket'"} \
+        ${source_event_trigger_role:+ParameterKey=ArtifactSourceBucketEventTriggerRoleArn,ParameterValue="'$source_event_trigger_role'"} \
+        ${repository_name:+ParameterKey=OneLoginRepositoryName,ParameterValue="'$repository_name'"} \
+        ${slack_notification_stack:+ParameterKey=BuildNotificationStackName,ParameterValue="'$slack_notification_stack'"} \
+        ${notification_type:+ParameterKey=SlackNotificationType,ParameterValue="'$notification_type'"} \
         ParameterKey=ProgrammaticPermissionsBoundary,ParameterValue="True" \
-        ${vpc_stack:+ParameterKey=VpcStackName,ParameterValue="$vpc_stack"} \
-        ${allowed_service_one:+ParameterKey=AllowedServiceOne,ParameterValue="$allowed_service_one"} \
-        ${allowed_service_two:+ParameterKey=AllowedServiceTwo,ParameterValue="$allowed_service_two"} \
-        ${allowed_service_three:+ParameterKey=AllowedServiceThree,ParameterValue="$allowed_service_three"} \
-        ${allowed_service_four:+ParameterKey=AllowedServiceFour,ParameterValue="$allowed_service_four"} \
-        ${allowed_service_five:+ParameterKey=AllowedServiceFive,ParameterValue="$allowed_service_five"} \
-        ${allowed_service_six:+ParameterKey=AllowedServiceSix,ParameterValue="$allowed_service_six"} \
-        ${allowed_service_seven:+ParameterKey=AllowedServiceSeven,ParameterValue="$allowed_service_seven"} \
+        ${vpc_stack:+ParameterKey=VpcStackName,ParameterValue="'$vpc_stack'"} \
+        ${allowed_service_one:+ParameterKey=AllowedServiceOne,ParameterValue="'$allowed_service_one'"} \
+        ${allowed_service_two:+ParameterKey=AllowedServiceTwo,ParameterValue="'$allowed_service_two'"} \
+        ${allowed_service_three:+ParameterKey=AllowedServiceThree,ParameterValue="'$allowed_service_three'"} \
+        ${allowed_service_four:+ParameterKey=AllowedServiceFour,ParameterValue="'$allowed_service_four'"} \
+        ${allowed_service_five:+ParameterKey=AllowedServiceFive,ParameterValue="'$allowed_service_five'"} \
+        ${allowed_service_six:+ParameterKey=AllowedServiceSix,ParameterValue="'$allowed_service_six'"} \
+        ${allowed_service_seven:+ParameterKey=AllowedServiceSeven,ParameterValue="'$allowed_service_seven'"} \
         ParameterKey=PipelineEnvironmentNameEnabled,ParameterValue="No" \
-        ${TRUNCATED_STACK_NAME:+ParameterKey=TruncatedPipelineStackName,ParameterValue="$TRUNCATED_STACK_NAME"} \
+        ${TRUNCATED_STACK_NAME:+ParameterKey=TruncatedPipelineStackName,ParameterValue="'$TRUNCATED_STACK_NAME'"} \
         ParameterKey=AccessLogsCustomBucketNameEnabled,ParameterValue="Yes" \
 
   # Deploy to the downstream account.
-  local downstream_account_array=$(${ROOT_DIR}/scripts/aws.sh get-downstream-accounts)
-  for downstream in "${downstream_account_array[@]}"; do
-    deploy $downstream
-  done
+  if ! [[ -z "${downstream[*]}" ]]; then
+    for a in ${downstream[@]}; do
+      deploy $a
+    done
+  fi
 
 }
 

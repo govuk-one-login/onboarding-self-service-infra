@@ -48,8 +48,8 @@ function deploy {
       --stack-name="$STACK_NAME" \
       --template-url="$TEMPLATE_URL" \
       --capabilities CAPABILITY_IAM CAPABILITY_NAMED_IAM \
-      ${TAGS:+--tags ${TAGS[@]}} \
-      ${PARAMS:+--parameters ${PARAMS[@]}} \
+      ${TAGS:+--tags "${TAGS[@]}"} \
+      ${PARAMS:+--parameters "${PARAMS[@]}"} \
       2>&1 \
           && aws cloudformation wait stack-"$create_or_update"-complete \
               --stack-name="$STACK_NAME" || echo "Error" )"
@@ -81,8 +81,12 @@ ${DISABLE_ROLLBACK:-false} && DISABLE_ROLLBACK_OPTION="--disable-rollback"
 TAGS+=(Key="sse:component",Value="infrastructure" Key="sse:deployment-source",Value="manual")
 
 $DEPLOY || exit 0
-echo "Deploying stack ${STACK_NAME} with params:"
+create-or-update
+echo "Deploying stack $STACK_NAME"
+echo "Action: ${create_or_update}-stack"
+echo "Parameters:"
 printf "  %s\n" "${PARAMS[@]}"
-echo "... and tags:"
+echo "Tags:"
 printf "  %s\n" "${TAGS[@]}"
+
 deploy

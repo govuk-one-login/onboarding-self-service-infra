@@ -4,7 +4,7 @@ BASE_DIR="$(dirname "${BASH_SOURCE[0]}")"
 set -e
 
 OPTION_REGEX="^--?.*"
-BUILD=false\
+BUILD=false
 DEPLOY=true
 
 while [[ -n "$1" ]]; do
@@ -47,7 +47,7 @@ while [[ -n "$1" ]]; do
   shift
 done
 
-$DEPLOY && ! ${BASE_DIR}/scripts/aws.sh check-current-account "${ACCOUNT:-}" 2> /dev/null &&
+$DEPLOY && ! ${BASE_DIR}/aws.sh check-current-account "${ACCOUNT:-}" 2> /dev/null &&
   echo "Authenticate to${ACCOUNT:+" the '$ACCOUNT' account in"} AWS before deploying the stack" && exit 1
 
 [[ $TEMPLATE ]] && ! [[ -f $TEMPLATE ]] && echo "File '$TEMPLATE' does not exist" && exit 1
