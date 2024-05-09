@@ -76,11 +76,11 @@ $DEPLOY && ! ${BASE_DIR}/aws.sh check-current-account "${ACCOUNT:-}" 2> /dev/nul
 
 [[ $TEMPLATE ]] && ! [[ -f $TEMPLATE ]] && [[ -z $TEMPLATE_URL ]] && echo "No template found" && exit 1
 
-
 ${DISABLE_ROLLBACK:-false} && DISABLE_ROLLBACK_OPTION="--disable-rollback"
 TAGS+=(Key="sse:component",Value="infrastructure" Key="sse:deployment-source",Value="manual")
 
 $DEPLOY || exit 0
+
 create-or-update
 echo "Deploying stack $STACK_NAME"
 echo "Action: ${create_or_update}-stack"

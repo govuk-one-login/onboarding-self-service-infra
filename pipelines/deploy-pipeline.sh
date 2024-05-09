@@ -48,7 +48,7 @@ while [[ -n "${1:-}" ]]; do
     -n | --stack-name)
       shift
       STACK_NAME="${1:0:23}" # Must be less than 23 characters
-      TRUNCATED_STACK_NAME="${STACK_NAME:0:14}-pipeline" # Must be less than 23 characters
+      TRUNCATED_STACK_NAME="${STACK_NAME:0:20}-pl" # Must be less than 23 characters
       PIPELINE_STACK_NAME="${STACK_NAME}-pipeline"
       ;;
     -r | --repository)
@@ -250,4 +250,4 @@ INITIAL_ACCOUNT=$(${ROOT_DIR}/scripts/aws.sh get-initial-account)
 echo "The pipeline will be deployed to '$INITIAL_ACCOUNT' and all downstream accounts."
 deploy "$INITIAL_ACCOUNT"
 
-update-github "$INITIAL_ACCOUNT"
+#update-github "$INITIAL_ACCOUNT"
