@@ -32,11 +32,15 @@ function deploy {
 if [[ "$ACCOUNT" == production ]]; then
   echo "Getting subdomain name servers..."
   for account in development build staging integration; do
-    SERVERS=$(${ROOT_DIR}/scripts/aws.sh get-stack-outputs domain-config HostedZoneNameServers) || continue
+    SERVERS=$(${ROOT_DIR}/scripts/aws.sh get-stack-outputs domain-config HostedZoneNameServers $account) || continue
     PARAMS+=("${account@u}NameServers=$(jq --raw-output ".value" <<< "$SERVERS")")
   done
 else
-  PARAMS=(Subdomain="$account.")
+  PARAMS=(Subdomain="$ACCOUNT.")
 fi
+
+
+echo $PARAMS
+exit 2
 
 deploy "$ACCOUNT" ${PARAMS:+--parameters ${PARAMS[@]}} "$@"

@@ -158,6 +158,9 @@ function get-user-name {
 function get-stack-outputs {
   local stack=$1
   local selectors=${*:2}
+  local account=${3:-$(get-current-account-name)}
+  local account_number=$(get-account-number "$account")
+  local profile=$(get-account-profile "$account_number" "admin")
   local query
 
   for selector in $selectors; do
@@ -165,7 +168,7 @@ function get-stack-outputs {
   done
 
   local query=${query:+?${query}}
-  local outputs=$(aws cloudformation describe-stacks --stack-name "$stack" --query "Stacks[0].Outputs[$query]" 2> /dev/null)
+  local outputs=$(aws --profile $profile cloudformation describe-stacks --stack-name "$stack" --query "Stacks[0].Outputs[$query]" 2> /dev/null)
   [[ $outputs != null ]] && [[ $outputs != "[]" ]] && jq 'map({name: .OutputKey, value: .OutputValue}) | .[]' <<< "$outputs"
 }
 
