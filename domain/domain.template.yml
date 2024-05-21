@@ -123,6 +123,12 @@ Resources:
           Type: CNAME
           TTL: 172800
 
+        - Name: !Ref Domain
+          Type: TXT
+          ResourceRecords:
+          - "\"google-site-verification=29R-qq6QJ-1kNjZl5HDOxwbQkPihE3Xs7nbRwa9FdGY\"" # Added for Huw's Google Search Console setup.
+          TTL: 3600 # 1hr
+
         # Docs delegated to di-documentation #203073707786
         - Name: !Sub docs.${Domain}
           ResourceRecords: [
