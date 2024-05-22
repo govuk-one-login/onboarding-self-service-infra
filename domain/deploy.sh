@@ -39,8 +39,4 @@ else
   PARAMS=(Subdomain="$ACCOUNT.")
 fi
 
-
-echo $PARAMS
-exit 2
-
 deploy "$ACCOUNT" ${PARAMS:+--parameters ${PARAMS[@]}} "$@"
