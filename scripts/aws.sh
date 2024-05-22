@@ -102,7 +102,7 @@ function get-account-name {
 # Get the aws profile configured for a given account number.
 function get-account-profile {
   local account=${1:-$(get-current-account-number)}
-  local role="di-onboarding-${2:-readonly}" # Use readonly roles unless specified.
+  local role="di-onboarding-${2:-admin}" # Use readonly roles unless specified.
 
   for p in $(aws configure list-profiles); do
     local profile=$(aws --profile "$p" sts get-caller-identity 2> /dev/null)
