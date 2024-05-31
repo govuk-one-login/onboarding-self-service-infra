@@ -14,6 +14,7 @@ The pipeline will be deployed to all accounts in the secure pipelines account gr
 Usage:
     -n      --stack-name        [required] The name of the cloudformation or sam stack that this pipeline deploys.
     -r      --repository        [required] The name of the the GitHub repository which initiates this pipeline.
+    -g      --no-github-update  [optional] Disable updating the stack outputs in github.
     -t      --tags              [optional] A list of tags to associate with the stack, encoded as key-value pairs delimited by '|' or newlines".
     -s      --services          [optional] A list of list of services to enable for this pipeline, delimited by '|' or newlines.
                                 Core services included: CloudFormation, CloudWatch, Logs, CodeBuild, IAM, KMS,
@@ -55,6 +56,7 @@ while [[ -n "${1:-}" ]]; do
       shift
       REPOSITORY="$1"
       ;;
+    -g | --no-github-update) GITHUB_UPDATE=false ;;
     -t | --tags)
       shift
       IFS='|' read -ra TAGS <<< "$1"
@@ -250,4 +252,6 @@ INITIAL_ACCOUNT=$(${ROOT_DIR}/scripts/aws.sh get-initial-account)
 echo "The pipeline will be deployed to '$INITIAL_ACCOUNT' and all downstream accounts."
 deploy "$INITIAL_ACCOUNT"
 
-update-github "$INITIAL_ACCOUNT"
+if ${GITHUB_UPDATE:-true}; then
+  update-github "$INITIAL_ACCOUNT"
+fi

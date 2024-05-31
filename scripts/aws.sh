@@ -102,7 +102,7 @@ function get-account-name {
 # Get the aws profile configured for a given account number.
 function get-account-profile {
   local account=${1:-$(get-current-account-number)}
-  local role="di-onboarding-${2:-readonly}" # Use readonly roles unless specified.
+  local role="di-onboarding-${2:-admin}" # Use readonly roles unless specified.
 
   for p in $(aws configure list-profiles); do
     local profile=$(aws --profile "$p" sts get-caller-identity 2> /dev/null)
@@ -158,6 +158,9 @@ function get-user-name {
 function get-stack-outputs {
   local stack=$1
   local selectors=${*:2}
+  local account=${3:-$(get-current-account-name)}
+  local account_number=$(get-account-number "$account")
+  local profile=$(get-account-profile "$account_number" "admin")
   local query
 
   for selector in $selectors; do
@@ -165,7 +168,7 @@ function get-stack-outputs {
   done
 
   local query=${query:+?${query}}
-  local outputs=$(aws cloudformation describe-stacks --stack-name "$stack" --query "Stacks[0].Outputs[$query]" 2> /dev/null)
+  local outputs=$(aws --profile $profile cloudformation describe-stacks --stack-name "$stack" --query "Stacks[0].Outputs[$query]" 2> /dev/null)
   [[ $outputs != null ]] && [[ $outputs != "[]" ]] && jq 'map({name: .OutputKey, value: .OutputValue}) | .[]' <<< "$outputs"
 }
 

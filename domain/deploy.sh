@@ -23,7 +23,7 @@ function deploy {
   ${ROOT_DIR}/scripts/deploy-sam-stack.sh "${@:2}" \
     --validate \
     --stack-name "$STACK_NAME" \
-    --template "domain.template.yml" \
+    --template "${BASE_DIR}/domain.template.yml" \
     --tags \
         sse:stack-type=config \
         sse:stack-role=dns
@@ -32,11 +32,11 @@ function deploy {
 if [[ "$ACCOUNT" == production ]]; then
   echo "Getting subdomain name servers..."
   for account in development build staging integration; do
-    SERVERS=$(${ROOT_DIR}/scripts/aws.sh get-stack-outputs domain-config HostedZoneNameServers) || continue
+    SERVERS=$(${ROOT_DIR}/scripts/aws.sh get-stack-outputs domain-config HostedZoneNameServers $account) || continue
     PARAMS+=("${account@u}NameServers=$(jq --raw-output ".value" <<< "$SERVERS")")
   done
 else
-  PARAMS=(Subdomain="$account.")
+  PARAMS=(Subdomain="$ACCOUNT.")
 fi
 
 deploy "$ACCOUNT" ${PARAMS:+--parameters ${PARAMS[@]}} "$@"
