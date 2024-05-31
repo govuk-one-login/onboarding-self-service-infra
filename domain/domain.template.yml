@@ -123,11 +123,17 @@ Resources:
           Type: CNAME
           TTL: 172800
 
+          # See commit message TXT validation failed, trying CNAME below, candidate for removal on future PR
         - Name: !Ref Domain
           Type: TXT
           ResourceRecords:
           - "\"google-site-verification=29R-qq6QJ-1kNjZl5HDOxwbQkPihE3Xs7nbRwa9FdGY\"" # Added for Huw's Google Search Console setup.
           TTL: 3600 # 1hr
+
+        - Name: zvjmfu36uwrs
+          ResourceRecords: [ gv-hbxx5flro3bd42.dv.googlehosted.com ]
+          Type: CNAME
+          TTL: 172800 # 48h
 
         # Docs delegated to di-documentation #203073707786
         - Name: !Sub docs.${Domain}
