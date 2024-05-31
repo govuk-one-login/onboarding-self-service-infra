@@ -1,0 +1,107 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Onboarding Self-Service performance alarms and dashboard
+
+Parameters:
+  NotificationsStack:
+    Type: String
+    Description: "The stack name for the stack that contains the alert notification resources"
+    Default: onboarding-infrastructure-monitoring-alert-notifications
+  EnableAlerting:
+    Description: "Whether to enable alerts to be sent when the metrics rise above the threshold"
+    Type: String
+    AllowedValues: [ true, false ]
+    Default: true
+
+Conditions:
+  IsAlerting: !Equals [true, !Ref EnableAlerting]
+
+Resources:
+  SSEPerf001Alarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: OnboardingSelfServicePERF001
+      AlarmDescription: >
+        # SSE - PERF001 Alarm
+        
+        95% of user-facing requests to be served within 1 second
+        
+        [Performance SLAs](https://govukverify.atlassian.net/wiki/spaces/DID/pages/3295084564/Performance+SLAs+Performance+Efficiency+SLAs+Incident+Management+Recovery)
+      ActionsEnabled: true
+      OKActions: [ ]
+      AlarmActions: [ ]
+      InsufficientDataActions: [ ]
+      MetricName: TargetResponseTime
+      Namespace: AWS/ApplicationELB
+      ExtendedStatistic: p95
+      Dimensions:
+        - Name: LoadBalancer
+          Value:
+            Fn::ImportValue: !Sub self-service-frontend-AppLBName
+      Period: 21600
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 3
+      Threshold: 1
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: missing
+
+  PPPerf001Alarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: OnboardingProductPagesPERF001
+      AlarmDescription: >
+        # SSE - PERF001 Alarm
+        
+        95% of user-facing requests to be served within 1 second
+        
+        [Performance SLAs](https://govukverify.atlassian.net/wiki/spaces/DID/pages/3295084564/Performance+SLAs+Performance+Efficiency+SLAs+Incident+Management+Recovery)
+      ActionsEnabled: true
+      OKActions: [ ]
+      AlarmActions: [ ]
+      InsufficientDataActions: [ ]
+      MetricName: TargetResponseTime
+      Namespace: AWS/ApplicationELB
+      ExtendedStatistic: p95
+      Dimensions:
+        - Name: LoadBalancer
+          Value:
+            Fn::ImportValue: !Sub productpages-frontend-AppLBName
+      Period: 21600
+      EvaluationPeriods: 3
+      DatapointsToAlarm: 3
+      Threshold: 1
+      ComparisonOperator: GreaterThanThreshold
+      TreatMissingData: missing
+
+  PerformanceEventRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: "SecretChangesEventRule"
+      EventPattern:
+        source: [ "aws.cloudwatch" ]
+        account: [ !Ref AWS::AccountId ]
+        detail-type: [ "CloudWatch Alarm State Change" ]
+        detail:
+          state:
+            value: [ "ALARM" ]
+          alarmName:
+            - "OnboardingSelfServicePERF001"
+            - "OnboardingProductPagesPERF001"
+      State: !If [ IsAlerting, "ENABLED", "DISABLED" ]
+      Targets:
+        - Arn:
+            Fn::ImportValue:
+              !Sub "${NotificationsStack}-sns-topic-arn"
+          Id: "OnboardingSecretChangeSnsRule"
+          InputTransformer:
+            InputPathsMap:
+              account: $.account
+              alarm: $.detail.alarmName
+            InputTemplate: |
+              {
+                "Application" : "Poor Performance Alerts",
+                "Heading" : "Poor performance detected",
+                "Message" : "PERF001 has detected poor performance for the alarm `<alarm>`",
+                "Context" : "AWS account: <account>",
+                "Colour" : "Amber"
+              }
