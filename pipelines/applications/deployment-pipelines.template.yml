@@ -221,6 +221,15 @@ Resources:
       Parameters:
         PipelineStackName: !Select [ 1, !Split [ "/", !Ref FrontendDeployer ] ]
 
+  FrontendTestImagesRepository:
+    Type: AWS::CloudFormation::Stack
+    Condition: FrontendRepositorySource
+    Properties:
+      TemplateURL: !Sub ${TemplateStorageBucket}/test-image-repository/template.yaml
+      Parameters:
+        PipelineStackName: !Select [ 1, !Split [ "/", !Ref FrontendDeployer ] ]
+        RetainedImageCount: "25"
+
   APIDeploymentPolicy:
     Type: AWS::IAM::Policy
     Condition: APIRepositorySource
