@@ -45,12 +45,11 @@ Parameters:
 Conditions:
   IsFinalAccount: !Not [ !Condition PromotionEnabled ]
   PromotionEnabled: !Not [ !Equals [ !Ref NextAccount, "" ] ]
-  ProductPagesProductPagesFrontendRepositorySource: !Equals [ !Ref FrontendSourceBucketARN, "none" ]
+  ProductPagesFrontendRepositorySource: !Equals [ !Ref ProductPagesFrontendSourceBucketARN, "none" ]
 
 Resources:
   ProductPagesFrontendDeployer:
     Type: AWS::CloudFormation::Stack
-    DependsOn: DynamoDBDeployer
     Properties:
       TemplateURL: !Sub ${TemplateStorageBucket}/sam-deploy-pipeline/template.yaml
       Tags:
@@ -112,7 +111,7 @@ Resources:
             Action:
               - codepipeline:ListPipelineExecutions
               - codepipeline:StartPipelineExecution
-            Resource: !Sub arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${FrontendDeployer.Outputs.PipelineName}
+            Resource: !Sub arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${ProductPagesFrontendDeployer.Outputs.PipelineName}
           - Effect: Allow
             Action: ecr:BatchDeleteImage
             Resource: !Sub arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${ProductPagesFrontendECRRepository.Outputs.ContainerRepositoryName}
@@ -121,23 +120,23 @@ Outputs:
   # Promotion
   ProducePagesFrontendPromotionBucket:
     Condition: PromotionEnabled
-    Value: !GetAtt FrontendDeployer.Outputs.ArtifactPromotionBucketArn
+    Value: !GetAtt ProductPagesFrontendDeployer.Outputs.ArtifactPromotionBucketArn
   ProducePagesFrontendPromotionBucketEventTriggerRoleArn:
     Condition: PromotionEnabled
-    Value: !GetAtt FrontendDeployer.Outputs.ArtifactPromotionBucketEventTriggerRoleArn
+    Value: !GetAtt ProductPagesFrontendDeployer.Outputs.ArtifactPromotionBucketEventTriggerRoleArn
 
   # Deployment
   ProducePagesFrontendDeploymentRoleArn:
     Condition: ProductPagesFrontendRepositorySource
-    Value: !GetAtt FrontendDeployer.Outputs.GitHubActionsRoleArn
+    Value: !GetAtt ProductPagesFrontendDeployer.Outputs.GitHubActionsRoleArn
   ProducePagesFrontendArtifactSourceBucketName:
     Condition: ProductPagesFrontendRepositorySource
-    Value: !GetAtt FrontendDeployer.Outputs.GitHubArtifactSourceBucketName
+    Value: !GetAtt ProductPagesFrontendDeployer.Outputs.GitHubArtifactSourceBucketName
   ProducePagesFrontendECRRepositoryName:
     Condition: ProductPagesFrontendRepositorySource
-    Value: !GetAtt FrontendECRRepository.Outputs.ContainerRepositoryName
+    Value: !GetAtt ProductPagesFrontendECRRepository.Outputs.ContainerRepositoryName
   ProducePagesFrontendTestECRRepositoryName:
     Condition: ProductPagesFrontendRepositorySource
-    Value: !GetAtt FrontendECRRepository.Outputs.ContainerRepositoryName
+    Value: !GetAtt ProductPagesFrontendTestImagesRepository.Outputs.ContainerRepositoryName
   ProducePagesFrontendPipelineName:
-    Value: !GetAtt FrontendDeployer.Outputs.PipelineName
+    Value: !GetAtt ProductPagesFrontendDeployer.Outputs.PipelineName

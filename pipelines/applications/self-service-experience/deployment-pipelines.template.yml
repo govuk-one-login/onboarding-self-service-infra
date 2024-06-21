@@ -204,6 +204,9 @@ Resources:
         ArtifactSourceBucketEventTriggerRoleArn: !Ref FrontendArtifactSourceBucketEventTriggerRoleArn
         GitHubRepositoryName: !If [ FrontendRepositorySource, !Ref GitHubRepositoryName, "none" ]
         OneLoginRepositoryName: !If [ FrontendRepositorySource, !Ref OneLoginRepositoryName, "none" ]
+        TestImageRepositoryUri: !GetAtt FrontendTestImagesRepository.Outputs.TestRunnerImageEcrRepositoryUri
+        TestReportFormat: "CUCUMBERJSON"
+        RunTestContainerInVPC: "True"
         AllowedAccounts: !Ref NextAccount
         IncludePromotion: !If [ PromotionEnabled, "Yes", "No" ]
         AccessLogsCustomBucketNameEnabled: "No"
