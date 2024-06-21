@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 BASE_DIR="$(dirname "${BASH_SOURCE[0]}")"
-ROOT_DIR="${BASE_DIR}/../.."
+ROOT_DIR="${BASE_DIR}/../../.."
 set -eu
 
 function get-param {
@@ -14,7 +14,7 @@ function get-signing-config {
 
   local output_params=$(aws cloudformation describe-stacks \
     --profile $initial_account_profile \
-    --stack-name "$STACK_NAME"-support --query "Stacks[0].Outputs[]" 2> /dev/null)
+    --stack-name secure-pipelines-support --query "Stacks[0].Outputs[]" 2> /dev/null)
 
   signing_profile=$(get-param "$output_params" SigningProfileARN)
   signing_profile_version=$(get-param "$output_params" SigningProfileVersionARN)
@@ -69,7 +69,8 @@ ${ROOT_DIR}/scripts/deploy-sam-stack.sh "$@" \
   --template ${BASE_DIR}/deployment-pipelines.template.yml \
   --tags Product="GOV.UK One Login" System="Dev Platform" Service="ci/cd" Owner="Self-Service Team" Environment="$ENV" \
   --parameters Environment="$ENV" NextAccount="${downstream_accounts:-''}" \
-  SigningProfileARN="$signing_profile" SigningProfileVersionARN="$signing_profile_version" \
+  SigningProfileARN="$signing_profile" \
+  SigningProfileVersionARN="$signing_profile_version" \
   FrontendSourceBucketARN="${frontend_source_bucket:-none}" \
   FrontendArtifactSourceBucketEventTriggerRoleArn="${frontend_source_bucket_event_trigger_role:-none}" \
   ContainerSigningKeyARN="${container_signing_key:-none}"
