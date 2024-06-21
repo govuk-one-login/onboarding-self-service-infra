@@ -204,7 +204,7 @@ Resources:
         ArtifactSourceBucketEventTriggerRoleArn: !Ref FrontendArtifactSourceBucketEventTriggerRoleArn
         GitHubRepositoryName: !If [ FrontendRepositorySource, !Ref GitHubRepositoryName, "none" ]
         OneLoginRepositoryName: !If [ FrontendRepositorySource, !Ref OneLoginRepositoryName, "none" ]
-        TestImageRepositoryUri: !GetAtt FrontendTestImagesRepository.Outputs.TestRunnerImageEcrRepositoryUri
+        TestImageRepositoryUri: !If [ FrontendRepositorySource, !GetAtt FrontendTestImagesRepository.Outputs.TestRunnerImageEcrRepositoryUri, "none" ]
         TestReportFormat: "CUCUMBERJSON"
         RunTestContainerInVPC: "True"
         AllowedAccounts: !Ref NextAccount
@@ -231,7 +231,7 @@ Resources:
       TemplateURL: !Sub ${TemplateStorageBucket}/test-image-repository/template.yaml
       Parameters:
         PipelineStackName: !Select [ 1, !Split [ "/", !Ref FrontendDeployer ] ]
-        RetainedImageCount: "25"
+        RetainedImageCount: "4"
 
   APIDeploymentPolicy:
     Type: AWS::IAM::Policy

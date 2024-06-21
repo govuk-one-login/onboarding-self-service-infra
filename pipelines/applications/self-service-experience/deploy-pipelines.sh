@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 BASE_DIR="$(dirname "${BASH_SOURCE[0]}")"
-ROOT_DIR="${BASE_DIR}/../.."
+ROOT_DIR="${BASE_DIR}/../../.."
 set -eu
 
 function get-param {
