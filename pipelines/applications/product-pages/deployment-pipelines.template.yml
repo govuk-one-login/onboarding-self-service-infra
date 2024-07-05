@@ -93,7 +93,7 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Condition: ProductPagesFrontendRepositorySource
     Properties:
-      TemplateURL: !Sub ${TemplateStorageBucket}/test-image-repository/template.yaml
+      TemplateURL: !Sub https://template-storage-templatebucket-1upzyw6v9cs42.s3.amazonaws.com/test-image-repository/template.yaml
       Parameters:
         PipelineStackName: !Select [ 1, !Split [ "/", !Ref ProductPagesFrontendDeployer ] ]
         RetainedImageCount: "25"

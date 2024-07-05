@@ -70,7 +70,7 @@ if $DEPLOY; then
 fi
 
 if $BUILD || ${VALIDATE:-false}; then
-  echo "Validating template..."
+  echo "Validating template: $TEMPLATE..."
   sam validate ${TEMPLATE:+--template "$TEMPLATE"}
   sam validate ${TEMPLATE:+--template "$TEMPLATE"} --lint
 fi
