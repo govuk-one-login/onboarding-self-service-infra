@@ -98,15 +98,14 @@ def delete_old_group(log_group):
         diff_days = diff_millis / (1000 * 86400)
 
     # Check if the log group is managed by a CFN stack
-    response = cloudwatchlogs_client.list_tags_log_group(
+    tags_response = cloudwatchlogs_client.list_tags_log_group(
         logGroupName=log_group['logGroupName']
     )
-    stack_name = None
-    if response and response['tags'] and 'aws:cloudformation:stack-name' in response['tags']:
-        stack_name = response['tags']['aws:cloudformation:stack-name']
+    if tags_response and tags_response['tags'] and 'aws:cloudformation:stack-id' in tags_response['tags']:
+        return
 
-    # Allow log groups to be deleted if they do not have any log streams or are not managed by a CFN stack
-    deletable = not stack_name or not has_stream(log_group)
+    # Allow log groups to be deleted if they do not have any log streams
+    deletable = not has_stream(log_group)
 
     # Delete any log groups older than 60 days
     if diff_days > log_group['retentionInDays'] and deletable:
