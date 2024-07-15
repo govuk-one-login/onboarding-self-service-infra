@@ -40,6 +40,9 @@ Rules:
           Must not specify LocalName when Environment is not "local"  
 
 Conditions:
+  IsPublic: !Or
+    - !Equals [!Ref Environment, integration]
+    - !Equals [!Ref Environment, production]
   IsProdLikeEnvironment: !Or
     - !Equals [!Ref Environment, staging]
     - !Equals [!Ref Environment, integration]
@@ -84,7 +87,10 @@ Resources:
       Description: !Sub "Web ACL for all ${Application} resources"
       Name: !Sub "${Application}-${Environment}${LocalName}-webacl"
       DefaultAction:
-        Allow: {}
+        !If
+        - IsPublic
+        - Allow: { }
+        - Block: { }
 
       Rules:
         - Name: AWS-CRS # Allowed in non-production
