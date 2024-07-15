@@ -23,9 +23,6 @@ Parameters:
   NextAccount:
     Type: String
     Default: ""
-  GitHubRepositoryName:
-    Type: String
-    Default: none
   OneLoginRepositoryName:
     Type: String
     Default: onboarding-self-service-experience
@@ -210,7 +207,6 @@ Resources:
         SlackNotificationType: !If [ IsFinalAccount, All, Failures ]
         ArtifactSourceBucketArn: !Ref FrontendSourceBucketARN
         ArtifactSourceBucketEventTriggerRoleArn: !Ref FrontendArtifactSourceBucketEventTriggerRoleArn
-        GitHubRepositoryName: !If [ FrontendRepositorySource, !Ref GitHubRepositoryName, "none" ]
         OneLoginRepositoryName: !If [ FrontendRepositorySource, !Ref OneLoginRepositoryName, "none" ]
         TestImageRepositoryUri: !FindInMap [ TestImageRepository, !Ref Environment, name, { DefaultValue: "none" } ]
         TestReportFormat: "CUCUMBERJSON"

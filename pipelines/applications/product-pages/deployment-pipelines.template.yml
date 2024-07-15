@@ -1,5 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Deployment pipelines for the Product Pages
+Transform: AWS::LanguageExtensions
 
 Parameters:
   # Template reference https://github.com/govuk-one-login/devplatform-deploy
@@ -22,9 +23,6 @@ Parameters:
   NextAccount:
     Type: String
     Default: ""
-  GitHubRepositoryName:
-    Type: String
-    Default: none
   OneLoginRepositoryName:
     Type: String
     Default: onboarding-product-page
@@ -41,6 +39,13 @@ Parameters:
   ProductPagesFrontendArtifactSourceBucketEventTriggerRoleArn:
     Type: String
     Default: none
+
+Mappings:
+  TestImageRepository:
+    dev:
+      name: "494650018671.dkr.ecr.eu-west-2.amazonaws.com/product-pages-secure-pipelines-test-image-repository-testrunnerimagerepository-luahu1qqkeqa"
+    build:
+      name: "399055180839.dkr.ecr.eu-west-2.amazonaws.com/product-pages-secure-pipelines-test-image-repository-containerrepository-hvvw6cy4qare"
 
 Conditions:
   IsFinalAccount: !Not [ !Condition PromotionEnabled ]
@@ -72,8 +77,10 @@ Resources:
         SlackNotificationType: !If [ IsFinalAccount, All, Failures ]
         ArtifactSourceBucketArn: !Ref ProductPagesFrontendSourceBucketARN
         ArtifactSourceBucketEventTriggerRoleArn: !Ref ProductPagesFrontendArtifactSourceBucketEventTriggerRoleArn
-        GitHubRepositoryName: !If [ ProductPagesFrontendRepositorySource, !Ref GitHubRepositoryName, "none" ]
         OneLoginRepositoryName: !If [ ProductPagesFrontendRepositorySource, !Ref OneLoginRepositoryName, "none" ]
+        TestImageRepositoryUri: !FindInMap [ TestImageRepository, !Ref Environment, name, { DefaultValue: "none" } ]
+        TestReportFormat: "CUCUMBERJSON"
+        RunTestContainerInVPC: "False"
         AllowedAccounts: !Ref NextAccount
         IncludePromotion: !If [ PromotionEnabled, "Yes", "No" ]
         AccessLogsCustomBucketNameEnabled: "No"
@@ -88,15 +95,6 @@ Resources:
       TemplateURL: !Sub ${TemplateStorageBucket}/container-image-repository/template.yaml
       Parameters:
         PipelineStackName: !Select [ 1, !Split [ "/", !Ref ProductPagesFrontendDeployer ] ]
-
-  ProductPagesFrontendTestImagesRepository:
-    Type: AWS::CloudFormation::Stack
-    Condition: ProductPagesFrontendRepositorySource
-    Properties:
-      TemplateURL: !Sub https://template-storage-templatebucket-1upzyw6v9cs42.s3.amazonaws.com/test-image-repository/template.yaml
-      Parameters:
-        PipelineStackName: !Select [ 1, !Split [ "/", !Ref ProductPagesFrontendDeployer ] ]
-        RetainedImageCount: "25"
 
   ProductPagesFrontendDeploymentPolicy:
     Type: AWS::IAM::Policy
@@ -135,8 +133,5 @@ Outputs:
   ProducePagesFrontendECRRepositoryName:
     Condition: ProductPagesFrontendRepositorySource
     Value: !GetAtt ProductPagesFrontendECRRepository.Outputs.ContainerRepositoryName
-  ProducePagesFrontendTestECRRepositoryName:
-    Condition: ProductPagesFrontendRepositorySource
-    Value: !GetAtt ProductPagesFrontendTestImagesRepository.Outputs.ContainerRepositoryName
   ProducePagesFrontendPipelineName:
     Value: !GetAtt ProductPagesFrontendDeployer.Outputs.PipelineName

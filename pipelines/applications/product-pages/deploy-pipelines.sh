@@ -55,7 +55,7 @@ function get-promotion-config {
 
 ACCOUNT=$(${ROOT_DIR}/scripts/aws.sh get-current-account-name)
 INITIAL_ACCOUNT=$(${ROOT_DIR}/scripts/aws.sh get-initial-account "$ACCOUNT")
-STACK_NAME=productpages-secure-pipelines
+STACK_NAME=product-secure-pipelines
 
 [[ $ACCOUNT == "$INITIAL_ACCOUNT" ]] || get-source-config
 [[ $ACCOUNT == development ]] && ENV=dev || ENV=$ACCOUNT
