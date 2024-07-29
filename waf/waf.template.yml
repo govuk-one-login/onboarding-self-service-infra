@@ -194,6 +194,18 @@ Resources:
             MetricName: !Sub "${Application}-${Environment}${LocalName}-gds-ip-hits-metric"
             SampledRequestsEnabled: FALSE
 
+        - Name: TestRunner-IpList # Allowed in non-production
+          Priority: 30
+          Statement:
+            IPSetReferenceStatement:
+              Arn: !GetAtt Wafv2TestRunnerIpSet.Arn
+          Action:
+            Allow: { }
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: TRUE
+            MetricName: !Sub "${Application}-${Environment}${LocalName}-test-runner-ip-hits-metric"
+            SampledRequestsEnabled: FALSE
+
         - Name: Anonymous-IpList # Only counting
           Priority: 40
           Statement:
@@ -272,6 +284,21 @@ Resources:
           Value: "identity-broker"
         - Key: Source
           Value: "govuk-one-login/devplatform-demo-sam-app/WAFv2/template.yaml"
+
+  # The IP address blocks of the VPC where the tests are run from
+  Wafv2TestRunnerIpSet:
+    Type: AWS::WAFv2::IPSet
+    Properties:
+      Addresses:
+        - "13.41.232.254"
+        - "3.11.188.14"
+      IPAddressVersion: IPV4
+      Scope: REGIONAL
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-Wafv2TestRunnerIpSet"
+        - Key: Service
+          Value: "identity-broker"
 
   LogAuditLogGroup:
     # checkov:skip=CKV_AWS_158:Ensure that CloudWatch Log Group is encrypted by KMS
