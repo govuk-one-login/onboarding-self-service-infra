@@ -134,6 +134,14 @@ Outputs:
     Value: !Join [ ",", !Ref InternetSubnets ]
     Export:
       Name: !Sub ${ExportPrefix}VPC-InternetSubnets
+  SubnetAEIP:
+    Value: !GetAtt VPC.Outputs.NatGatewayZoneAEIP
+    Export:
+      Name: !Sub ${ExportPrefix}VPC-AEIP
+  SubnetBEIP:
+    Value: !GetAtt VPC.Outputs.NatGatewayZoneBEIP
+    Export:
+      Name: !Sub ${ExportPrefix}VPC-BEIP
   ExecuteAPIGatewayVPCEndpointID:
     Value: !GetAtt VPC.Outputs.ExecuteApiGatewayVpcEndpointId
     Export:

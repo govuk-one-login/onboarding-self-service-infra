@@ -157,10 +157,7 @@ Resources:
               VendorName: AWS
               Name: AWSManagedRulesLinuxRuleSet
           OverrideAction:
-            !If
-            - IsProdLikeEnvironment
-            - Count: { }
-            - None: { }
+            None: { }
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
@@ -173,10 +170,7 @@ Resources:
               VendorName: AWS
               Name: AWSManagedRulesUnixRuleSet
           OverrideAction:
-            !If
-            - IsProdLikeEnvironment
-            - Count: { }
-            - None: { }
+            None: { }
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
@@ -195,7 +189,7 @@ Resources:
             SampledRequestsEnabled: FALSE
 
         - Name: TestRunner-IpList # Allowed in non-production
-          Priority: 30
+          Priority: 31
           Statement:
             IPSetReferenceStatement:
               Arn: !GetAtt Wafv2TestRunnerIpSet.Arn
@@ -290,8 +284,12 @@ Resources:
     Type: AWS::WAFv2::IPSet
     Properties:
       Addresses:
-        - "13.41.232.254"
-        - "3.11.188.14"
+        - !Sub
+          - "${IP}/32"
+          - IP: !ImportValue VPC-AEIP
+        - !Sub
+          - "${IP}/32"
+          - IP: !ImportValue VPC-BEIP
       IPAddressVersion: IPV4
       Scope: REGIONAL
       Tags:
