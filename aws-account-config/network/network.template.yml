@@ -40,10 +40,13 @@ Resources:
         ExecuteApiGatewayEnabled: "Yes"
         SQSApiEnabled: "Yes"
         SecretsManagerApiEnabled: "Yes"
+        SSMParametersStoreEnabled: "Yes"
+        CloudFormationEndpointEnabled: "Yes"
         DynatraceApiEnabled: "Yes"
         AccessLogsCustomBucketNameEnabled: "No"
         AvailabilityZoneCount: 2
         AllowedDomains: !Join [ ",", [
+          "*.sign-in.service.gov.uk",
           !Sub "cognito-idp.${AWS::Region}.amazonaws.com",
           api.notifications.service.gov.uk,
           "*.cloudfront.net",
@@ -54,29 +57,32 @@ Resources:
           "*.atlassian.net"
         ] ]
         AllowRules: !Sub >
+          pass tls $HOME_NET any -> $EXTERNAL_NET 443 (tls.sni; content:".sign-in.service.gov.uk";
+          endswith; msg:"Pass TLS to *.sign-in.service.gov.uk"; flow:established; rev:1; sid:2001;)
+          
           pass tls $HOME_NET any -> $EXTERNAL_NET 443 (tls.sni; content:"cognito-idp.${AWS::Region}.amazonaws.com";
-          startswith; endswith; msg:"Pass TLS to Cognito"; flow:established; rev:1; sid:2001;)
+          startswith; endswith; msg:"Pass TLS to Cognito"; flow:established; rev:1; sid:2002;)
           
           pass tls $HOME_NET any -> $EXTERNAL_NET 443 (tls.sni; content:"api.notifications.service.gov.uk";
-          startswith; endswith; msg:"Pass TLS to Notify API"; flow:established; rev:1; sid:2002;)
+          startswith; endswith; msg:"Pass TLS to Notify API"; flow:established; rev:1; sid:2003;)
           
           pass tls $HOME_NET any -> $EXTERNAL_NET 443 (tls.sni; content:".cloudfront.net";
-          endswith; msg:"Pass TLS to CloudFront"; flow:established; rev:1; sid:2003;)
+          endswith; msg:"Pass TLS to CloudFront"; flow:established; rev:1; sid:2004;)
           
           pass tls $HOME_NET any -> $EXTERNAL_NET 443 (tls.sni; content:".googleapis.com";
-          endswith; msg:"Pass TLS to googleapis"; flow:established; rev:1; sid:2004;)
+          endswith; msg:"Pass TLS to googleapis"; flow:established; rev:1; sid:2005;)
           
           pass tls $HOME_NET any -> $EXTERNAL_NET 443 (tls.sni; content:".google.com";
-          endswith; msg:"Pass TLS to google"; flow:established; rev:1; sid:2005;)
+          endswith; msg:"Pass TLS to google"; flow:established; rev:1; sid:2006;)
           
           pass tls $HOME_NET any -> $EXTERNAL_NET 443 (tls.sni; content:"govuk.zendesk.com";
-          endswith; msg:"Pass TLS to zendesk"; flow:established; rev:1; sid:2006;)
+          endswith; msg:"Pass TLS to zendesk"; flow:established; rev:1; sid:2007;)
           
           pass tls $HOME_NET any -> $EXTERNAL_NET 443 (tls.sni; content:".service-now.com";
-          endswith; msg:"Pass TLS to service-now"; flow:established; rev:1; sid:2007;)
+          endswith; msg:"Pass TLS to service-now"; flow:established; rev:1; sid:2008;)
 
           pass tls $HOME_NET any -> $EXTERNAL_NET 443 (tls.sni; content:".atlassian.net";
-          endswith; msg:"Pass TLS to atlassian"; flow:established; rev:1; sid:2008;)
+          endswith; msg:"Pass TLS to atlassian"; flow:established; rev:1; sid:2009;)
 
   AccessLogsBucket:
     # checkov:skip=CKV_AWS_18:Ensure the S3 bucket has access logging enabled
