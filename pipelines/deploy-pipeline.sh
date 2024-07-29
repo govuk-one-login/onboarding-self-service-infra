@@ -241,7 +241,7 @@ function deploy {
         ${test_repository_name:+ParameterKey=TestImageRepositoryUri,ParameterValue="'$test_repository_name'"} \
         ${run_tests:+ParameterKey=TestReportFormat,ParameterValue="CUCUMBERJSON"} \
         ${run_tests:+ParameterKey=TestCoverageReportFormat,ParameterValue="CLOVERXML"} \
-        ${run_tests:+ParameterKey=RunTestContainerInVPC,ParameterValue="False"} \
+        ${run_tests:+ParameterKey=RunTestContainerInVPC,ParameterValue="True"} \
         ${validate_tests:+ParameterKey=CreateTestContainerSignatureValidateStage,ParameterValue="Yes"} \
         ${validate_tests:+ParameterKey=RequireTestContainerSignatureValidation,ParameterValue="False"} \
         ${slack_notification_stack:+ParameterKey=BuildNotificationStackName,ParameterValue="'$slack_notification_stack'"} \
