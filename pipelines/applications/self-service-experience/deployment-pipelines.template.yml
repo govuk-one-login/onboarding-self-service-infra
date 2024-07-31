@@ -1,5 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Deployment pipelines for the Admin Tool
+Transform: AWS::LanguageExtensions
 
 Parameters:
   # Template reference https://github.com/govuk-one-login/devplatform-deploy
@@ -22,9 +23,6 @@ Parameters:
   NextAccount:
     Type: String
     Default: ""
-  GitHubRepositoryName:
-    Type: String
-    Default: none
   OneLoginRepositoryName:
     Type: String
     Default: onboarding-self-service-experience
@@ -59,6 +57,13 @@ Parameters:
   FrontendArtifactSourceBucketEventTriggerRoleArn:
     Type: String
     Default: none
+
+Mappings:
+  TestImageRepository:
+    dev:
+      name: "494650018671.dkr.ecr.eu-west-2.amazonaws.com/self-service-secure-pipelines-test-image-repository-testrunnerimagerepository-weqqcrcei6k0"
+    build:
+      name: test-image-repository-testrunnerimaygerepository-k7mjyepir8fcc
 
 Conditions:
   IsFinalAccount: !Not [ !Condition PromotionEnabled ]
@@ -202,8 +207,10 @@ Resources:
         SlackNotificationType: !If [ IsFinalAccount, All, Failures ]
         ArtifactSourceBucketArn: !Ref FrontendSourceBucketARN
         ArtifactSourceBucketEventTriggerRoleArn: !Ref FrontendArtifactSourceBucketEventTriggerRoleArn
-        GitHubRepositoryName: !If [ FrontendRepositorySource, !Ref GitHubRepositoryName, "none" ]
         OneLoginRepositoryName: !If [ FrontendRepositorySource, !Ref OneLoginRepositoryName, "none" ]
+        TestImageRepositoryUri: !FindInMap [ TestImageRepository, !Ref Environment, name, { DefaultValue: "none" } ]
+        TestReportFormat: "CUCUMBERJSON"
+        RunTestContainerInVPC: "False"
         AllowedAccounts: !Ref NextAccount
         IncludePromotion: !If [ PromotionEnabled, "Yes", "No" ]
         AccessLogsCustomBucketNameEnabled: "No"
@@ -220,15 +227,6 @@ Resources:
       TemplateURL: !Sub ${TemplateStorageBucket}/container-image-repository/template.yaml
       Parameters:
         PipelineStackName: !Select [ 1, !Split [ "/", !Ref FrontendDeployer ] ]
-
-  FrontendTestImagesRepository:
-    Type: AWS::CloudFormation::Stack
-    Condition: FrontendRepositorySource
-    Properties:
-      TemplateURL: !Sub ${TemplateStorageBucket}/test-image-repository/template.yaml
-      Parameters:
-        PipelineStackName: !Select [ 1, !Split [ "/", !Ref FrontendDeployer ] ]
-        RetainedImageCount: "25"
 
   APIDeploymentPolicy:
     Type: AWS::IAM::Policy

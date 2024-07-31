@@ -172,6 +172,23 @@ function get-supported-services {
   allowed_service_seven="${SERVICES[6]:-}"
 }
 
+# Determine whether tests should be run.
+function get-test-configuration {
+  local account=$(${ROOT_DIR}/scripts/aws.sh get-account-name)
+  downstream=($(${ROOT_DIR}/scripts/aws.sh get-downstream-accounts))
+
+  if ! [[ -z "${downstream[*]}" ]]; then
+    # Convert the downstream account names into account numbers
+    for a in "${downstream[@]}"; do
+      local downstream_account_numbers+=($(${ROOT_DIR}/scripts/aws.sh get-account-number $a))
+    done
+  fi
+
+  ! [[ -z "${downstream[*]}" ]] && downstream_accounts="$(IFS=,; echo "${downstream_account_numbers[*]}")" || downstream_accounts=""
+  ! [[ -z "${downstream[*]}" ]] && include_promotion="Yes" || include_promotion="No"
+  ! [[ -z "${downstream[*]}" ]] && notification_type="Failures" || notification_type="All"
+}
+
 function update-github {
   local account_name="${1:-}"
   local account=$(${ROOT_DIR}/scripts/aws.sh get-account-number "${1:-}")
@@ -221,6 +238,12 @@ function deploy {
         ${source_bucket:+ParameterKey=ArtifactSourceBucketArn,ParameterValue="'$source_bucket'"} \
         ${source_event_trigger_role:+ParameterKey=ArtifactSourceBucketEventTriggerRoleArn,ParameterValue="'$source_event_trigger_role'"} \
         ${repository_name:+ParameterKey=OneLoginRepositoryName,ParameterValue="'$repository_name'"} \
+        ${test_repository_name:+ParameterKey=TestImageRepositoryUri,ParameterValue="'$test_repository_name'"} \
+        ${run_tests:+ParameterKey=TestReportFormat,ParameterValue="CUCUMBERJSON"} \
+        ${run_tests:+ParameterKey=TestCoverageReportFormat,ParameterValue="CLOVERXML"} \
+        ${run_tests:+ParameterKey=RunTestContainerInVPC,ParameterValue="True"} \
+        ${validate_tests:+ParameterKey=CreateTestContainerSignatureValidateStage,ParameterValue="Yes"} \
+        ${validate_tests:+ParameterKey=RequireTestContainerSignatureValidation,ParameterValue="False"} \
         ${slack_notification_stack:+ParameterKey=BuildNotificationStackName,ParameterValue="'$slack_notification_stack'"} \
         ${notification_type:+ParameterKey=SlackNotificationType,ParameterValue="'$notification_type'"} \
         ParameterKey=ProgrammaticPermissionsBoundary,ParameterValue="True" \

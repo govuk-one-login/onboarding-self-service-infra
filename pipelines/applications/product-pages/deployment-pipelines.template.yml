@@ -1,0 +1,137 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Deployment pipelines for the Product Pages
+Transform: AWS::LanguageExtensions
+
+Parameters:
+  # Template reference https://github.com/govuk-one-login/devplatform-deploy
+  TemplateStorageBucket:
+    Type: String
+    Default: https://template-storage-templatebucket-1upzyw6v9cs42.s3.amazonaws.com
+  ExportNamePrefix:
+    Type: String
+    Default: secure-pipelines
+    AllowedPattern: ^.*[^-]$
+    Description: Prefix to use when importing or exporting values
+  StackNamePrefix:
+    Type: String
+    Default: productpages
+    AllowedPattern: ^.*[^-]$
+    MaxLength: 14
+    Description: Prefix applied to the deployed application stack names
+  Environment:
+    Type: String
+  NextAccount:
+    Type: String
+    Default: ""
+  OneLoginRepositoryName:
+    Type: String
+    Default: onboarding-product-page
+  SigningProfileARN:
+    Type: String
+  SigningProfileVersionARN:
+    Type: String
+  ContainerSigningKeyARN:
+    Type: String
+    Default: none
+  ProductPagesFrontendSourceBucketARN:
+    Type: String
+    Default: none
+  ProductPagesFrontendArtifactSourceBucketEventTriggerRoleArn:
+    Type: String
+    Default: none
+
+Mappings:
+  TestImageRepository:
+    dev:
+      name: "494650018671.dkr.ecr.eu-west-2.amazonaws.com/product-pages-secure-pipelines-test-image-repository-testrunnerimagerepository-luahu1qqkeqa"
+    build:
+      name: "399055180839.dkr.ecr.eu-west-2.amazonaws.com/product-pages-secure-pipelines-test-image-repository-containerrepository-hvvw6cy4qare"
+
+Conditions:
+  IsFinalAccount: !Not [ !Condition PromotionEnabled ]
+  PromotionEnabled: !Not [ !Equals [ !Ref NextAccount, "" ] ]
+  ProductPagesFrontendRepositorySource: !Equals [ !Ref ProductPagesFrontendSourceBucketARN, "none" ]
+
+Resources:
+  ProductPagesFrontendDeployer:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub ${TemplateStorageBucket}/sam-deploy-pipeline/template.yaml
+      Tags:
+        - Key: System
+          Value: Self-Service
+        - Key: Service
+          Value: Frontend
+        - Key: sse:deployment-source
+          Value: secure-pipelines
+      Parameters:
+        Environment: !Ref Environment
+        SAMStackName: !Sub ${StackNamePrefix}-frontend
+        TruncatedPipelineStackName: !Sub ${StackNamePrefix}-frontend
+        ContainerSignerKmsKeyArn: !Ref ContainerSigningKeyARN
+        SigningProfileVersionArn: !Ref SigningProfileVersionARN
+        SigningProfileArn: !Ref SigningProfileARN
+        VpcStackName: !ImportValue VPC-StackName
+        BuildNotificationStackName:
+          Fn::ImportValue: !Sub ${ExportNamePrefix}-SlackNotificationsStackName
+        SlackNotificationType: !If [ IsFinalAccount, All, Failures ]
+        ArtifactSourceBucketArn: !Ref ProductPagesFrontendSourceBucketARN
+        ArtifactSourceBucketEventTriggerRoleArn: !Ref ProductPagesFrontendArtifactSourceBucketEventTriggerRoleArn
+        OneLoginRepositoryName: !If [ ProductPagesFrontendRepositorySource, !Ref OneLoginRepositoryName, "none" ]
+        TestImageRepositoryUri: !FindInMap [ TestImageRepository, !Ref Environment, name, { DefaultValue: "none" } ]
+        TestReportFormat: "CUCUMBERJSON"
+        RunTestContainerInVPC: "True"
+        AllowedAccounts: !Ref NextAccount
+        IncludePromotion: !If [ PromotionEnabled, "Yes", "No" ]
+        AccessLogsCustomBucketNameEnabled: "No"
+        ProgrammaticPermissionsBoundary: "True"
+        PipelineEnvironmentNameEnabled: "Yes"
+        AllowedServiceOne: ECR & ECS
+
+  ProductPagesFrontendECRRepository:
+    Type: AWS::CloudFormation::Stack
+    Condition: ProductPagesFrontendRepositorySource
+    Properties:
+      TemplateURL: !Sub ${TemplateStorageBucket}/container-image-repository/template.yaml
+      Parameters:
+        PipelineStackName: !Select [ 1, !Split [ "/", !Ref ProductPagesFrontendDeployer ] ]
+
+  ProductPagesFrontendDeploymentPolicy:
+    Type: AWS::IAM::Policy
+    Condition: ProductPagesFrontendRepositorySource
+    Properties:
+      Roles: [ !GetAtt ProductPagesFrontendDeployer.Outputs.GitHubActionsRoleName ]
+      PolicyName: !Sub ${StackNamePrefix}-productpages-frontend-deployment
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Action:
+              - codepipeline:ListPipelineExecutions
+              - codepipeline:StartPipelineExecution
+            Resource: !Sub arn:aws:codepipeline:${AWS::Region}:${AWS::AccountId}:${ProductPagesFrontendDeployer.Outputs.PipelineName}
+          - Effect: Allow
+            Action: ecr:BatchDeleteImage
+            Resource: !Sub arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${ProductPagesFrontendECRRepository.Outputs.ContainerRepositoryName}
+
+Outputs:
+  # Promotion
+  ProducePagesFrontendPromotionBucket:
+    Condition: PromotionEnabled
+    Value: !GetAtt ProductPagesFrontendDeployer.Outputs.ArtifactPromotionBucketArn
+  ProducePagesFrontendPromotionBucketEventTriggerRoleArn:
+    Condition: PromotionEnabled
+    Value: !GetAtt ProductPagesFrontendDeployer.Outputs.ArtifactPromotionBucketEventTriggerRoleArn
+
+  # Deployment
+  ProducePagesFrontendDeploymentRoleArn:
+    Condition: ProductPagesFrontendRepositorySource
+    Value: !GetAtt ProductPagesFrontendDeployer.Outputs.GitHubActionsRoleArn
+  ProducePagesFrontendArtifactSourceBucketName:
+    Condition: ProductPagesFrontendRepositorySource
+    Value: !GetAtt ProductPagesFrontendDeployer.Outputs.GitHubArtifactSourceBucketName
+  ProducePagesFrontendECRRepositoryName:
+    Condition: ProductPagesFrontendRepositorySource
+    Value: !GetAtt ProductPagesFrontendECRRepository.Outputs.ContainerRepositoryName
+  ProducePagesFrontendPipelineName:
+    Value: !GetAtt ProductPagesFrontendDeployer.Outputs.PipelineName
