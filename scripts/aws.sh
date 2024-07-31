@@ -27,6 +27,8 @@ function get-pipeline-group {
 # Get all accounts downstream from the initial account.
 function get-all-downstream-accounts {
   local name=${1:-$(get-current-account-name)}
+  local initial_account=$(get-initial-account "$name")
+  local group=$(get-pipeline-group "$name")
   local format=${2:-"array"} # 'array' or 'string'
   local downstream_accounts=$(jq -r --arg name "$initial_account" --arg group "$group" 'map(select((.name==$name|not) and .group==$group) | .name)' aws-accounts.json)
 
@@ -39,7 +41,8 @@ function is-initial-account {
   local name=${1:-$(get-current-account-name)}
   local is_initial_account
 
-  [[ "$name" != $(get-initial-account "$name") ]] && is_initial_account=true && is_initial_account=false
+  [[ "$name" == $(get-initial-account "$name") ]] && is_initial_account=true || is_initial_account=false
+  echo $is_initial_account
 }
 
 # Get the initial account provided the account name.
