@@ -40,6 +40,9 @@ Rules:
           Must not specify LocalName when Environment is not "local"  
 
 Conditions:
+  IsPublic: !Or
+    - !Equals [!Ref Environment, integration]
+    - !Equals [!Ref Environment, production]
   IsProdLikeEnvironment: !Or
     - !Equals [!Ref Environment, staging]
     - !Equals [!Ref Environment, integration]
@@ -84,7 +87,10 @@ Resources:
       Description: !Sub "Web ACL for all ${Application} resources"
       Name: !Sub "${Application}-${Environment}${LocalName}-webacl"
       DefaultAction:
-        Allow: {}
+        !If
+        - IsPublic
+        - Allow: { }
+        - Block: { }
 
       Rules:
         - Name: AWS-CRS # Allowed in non-production
@@ -151,10 +157,7 @@ Resources:
               VendorName: AWS
               Name: AWSManagedRulesLinuxRuleSet
           OverrideAction:
-            !If
-            - IsProdLikeEnvironment
-            - Count: { }
-            - None: { }
+            None: { }
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
@@ -167,10 +170,7 @@ Resources:
               VendorName: AWS
               Name: AWSManagedRulesUnixRuleSet
           OverrideAction:
-            !If
-            - IsProdLikeEnvironment
-            - Count: { }
-            - None: { }
+            None: { }
           VisibilityConfig:
             SampledRequestsEnabled: true
             CloudWatchMetricsEnabled: true
@@ -186,6 +186,18 @@ Resources:
           VisibilityConfig:
             CloudWatchMetricsEnabled: TRUE
             MetricName: !Sub "${Application}-${Environment}${LocalName}-gds-ip-hits-metric"
+            SampledRequestsEnabled: FALSE
+
+        - Name: TestRunner-IpList # Allowed in non-production
+          Priority: 31
+          Statement:
+            IPSetReferenceStatement:
+              Arn: !GetAtt Wafv2TestRunnerIpSet.Arn
+          Action:
+            Allow: { }
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: TRUE
+            MetricName: !Sub "${Application}-${Environment}${LocalName}-test-runner-ip-hits-metric"
             SampledRequestsEnabled: FALSE
 
         - Name: Anonymous-IpList # Only counting
@@ -266,6 +278,25 @@ Resources:
           Value: "identity-broker"
         - Key: Source
           Value: "govuk-one-login/devplatform-demo-sam-app/WAFv2/template.yaml"
+
+  # The IP address blocks of the VPC where the tests are run from
+  Wafv2TestRunnerIpSet:
+    Type: AWS::WAFv2::IPSet
+    Properties:
+      Addresses:
+        - !Sub
+          - "${IP}/32"
+          - IP: !ImportValue VPC-AEIP
+        - !Sub
+          - "${IP}/32"
+          - IP: !ImportValue VPC-BEIP
+      IPAddressVersion: IPV4
+      Scope: REGIONAL
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-Wafv2TestRunnerIpSet"
+        - Key: Service
+          Value: "identity-broker"
 
   LogAuditLogGroup:
     # checkov:skip=CKV_AWS_158:Ensure that CloudWatch Log Group is encrypted by KMS

@@ -25,14 +25,15 @@ Please also run checkov against the template to ensure that you're as secure as 
 ## Deploy
 
 This component should be deployed for the appropriate application (set `$APPLICATION` to `self-service` or `product-pages`), with:
-
+onboarding-infrastructure-waf-product-pages-    
+development
 ```
 export APPLICATION='product-pages'
-export ENVIRONMENT='development'
+export ENVIRONMENT='build'
 ./scripts/deploy-sam-stack.sh \
     --account $ENVIRONMENT \
     --build \
-    --stack-name onboarding-infrastructure-waf-$APPLICATION \
+    --stack-name onboarding-infrastructure-waf-"$APPLICATION"-"$ENVIRONMENT" \
     --template waf/waf.template.yml \
     --manifest waf/package.json \
     --parameters Environment="$ENVIRONMENT" Application="$APPLICATION" \
