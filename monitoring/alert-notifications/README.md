@@ -43,6 +43,3 @@ The notification stack is deployed once in each environment, but will only :
     --base-dir monitoring/alert-notifications \
     --template monitoring/alert-notifications/alert-notifications.template.yml
 ```
-di-sse-alerts-test
-di-dfa-tech@digital.cabinet-office.gov.uk
-services/T8GT9416G/BRESZB5FE/QzdIuXUNv7XFt8gR8Ga1gwLx

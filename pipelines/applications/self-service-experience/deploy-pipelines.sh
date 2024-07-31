@@ -73,7 +73,7 @@ ${ROOT_DIR}/scripts/deploy-sam-stack.sh "$@" \
   --validate \
   --stack-name "$STACK_NAME" \
   --template ${BASE_DIR}/deployment-pipelines.template.yml \
-  --tags Product="GOV.UK One Login" System="Dev Platform" Service="ci/cd" Owner="Self-Service Team" Environment="$ENV" \
+  --tags Product="GOV.UK One Login" System="Orchestration" Service="Self-Service" Owner="di-dfa-tech@digital.cabinet-office.gov.uk" Environment="$ENV" \
   --parameters Environment="$ENV" NextAccount="${downstream_accounts:-''}" \
   SigningProfileARN="$signing_profile" SigningProfileVersionARN="$signing_profile_version" \
   APISourceBucketARN="${api_source_bucket:-none}" CognitoSourceBucketARN="${cognito_source_bucket:-none}" \
