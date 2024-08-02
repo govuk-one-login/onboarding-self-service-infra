@@ -30,7 +30,9 @@ function deploy {
 }
 
 function update-github {
-  [[ ${ROOT_DIR}/scripts/aws.sh is-initial-account "$ACCOUNT" ]] || return
+  local is_initial_account=$(${ROOT_DIR}/scripts/aws.sh is-initial-account "$ACCOUNT")
+
+  [[ $is_initial_account == true ]] || return
 
   ${ROOT_DIR}/configure-github-repo.sh update-deployment-environment "$ACCOUNT"-secure-pipelines $STACK_NAME \
       SigningProfileName ContainerSigningKeyARN

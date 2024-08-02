@@ -99,7 +99,6 @@ Resources:
         SlackNotificationType: !If [ IsFinalAccount, All, Failures ]
         ArtifactSourceBucketArn: !Ref APISourceBucketARN
         ArtifactSourceBucketEventTriggerRoleArn: !Ref APIArtifactSourceBucketEventTriggerRoleArn
-        GitHubRepositoryName: !If [ APIRepositorySource, !Ref GitHubRepositoryName, "none" ]
         OneLoginRepositoryName: !If [ APIRepositorySource, !Ref OneLoginRepositoryName, "none" ]
         AllowedAccounts: !Ref NextAccount
         IncludePromotion: !If [ PromotionEnabled, "Yes", "No" ]
@@ -137,7 +136,6 @@ Resources:
         SlackNotificationType: !If [ IsFinalAccount, All, Failures ]
         ArtifactSourceBucketArn: !Ref CognitoSourceBucketARN
         ArtifactSourceBucketEventTriggerRoleArn: !Ref CognitoArtifactSourceBucketEventTriggerRoleArn
-        GitHubRepositoryName: !If [ CognitoRepositorySource, !Ref GitHubRepositoryName, "none" ]
         OneLoginRepositoryName: !If [ CognitoRepositorySource, !Ref OneLoginRepositoryName, "none" ]
         AllowedAccounts: !Ref NextAccount
         IncludePromotion: !If [ PromotionEnabled, "Yes", "No" ]
@@ -173,7 +171,6 @@ Resources:
         SlackNotificationType: !If [ IsFinalAccount, All, Failures ]
         ArtifactSourceBucketArn: !Ref DynamoDBSourceBucketARN
         ArtifactSourceBucketEventTriggerRoleArn: !Ref DynamoDBArtifactSourceBucketEventTriggerRoleArn
-        GitHubRepositoryName: !If [ DynamoDBRepositorySource, !Ref GitHubRepositoryName, "none" ]
         OneLoginRepositoryName: !If [ DynamoDBRepositorySource, !Ref OneLoginRepositoryName, "none" ]
         AllowedAccounts: !Ref NextAccount
         IncludePromotion: !If [ PromotionEnabled, "Yes", "No" ]
