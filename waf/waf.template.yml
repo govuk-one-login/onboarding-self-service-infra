@@ -200,6 +200,18 @@ Resources:
             MetricName: !Sub "${Application}-${Environment}${LocalName}-test-runner-ip-hits-metric"
             SampledRequestsEnabled: FALSE
 
+        - Name: Private-IpList
+          Priority: 32
+          Statement:
+            IPSetReferenceStatement:
+              Arn: !GetAtt Wafv2PrivateIpSet.Arn
+          Action:
+            Allow: { }
+          VisibilityConfig:
+            CloudWatchMetricsEnabled: TRUE
+            MetricName: !Sub "${Application}-${Environment}${LocalName}-private-ip-hits-metric"
+            SampledRequestsEnabled: FALSE
+
         - Name: Anonymous-IpList # Only counting
           Priority: 40
           Statement:
@@ -249,6 +261,8 @@ Resources:
       Scope: REGIONAL
       Tags:
         - Key: Name
+          Value: !Sub "${AWS::StackName}-Wafv2"
+        - Key: Service
           Value: !Sub "${Application}"
         - Key: Environment
           Value: !Sub "${Environment}${LocalName}"
@@ -275,7 +289,9 @@ Resources:
         - Key: Name
           Value: !Sub "${AWS::StackName}-Wafv2GdsIpSet"
         - Key: Service
-          Value: "identity-broker"
+          Value: !Sub "${Application}"
+        - Key: Environment
+          Value: !Sub "${Environment}${LocalName}"
         - Key: Source
           Value: "govuk-one-login/devplatform-demo-sam-app/WAFv2/template.yaml"
 
@@ -296,7 +312,25 @@ Resources:
         - Key: Name
           Value: !Sub "${AWS::StackName}-Wafv2TestRunnerIpSet"
         - Key: Service
-          Value: "identity-broker"
+          Value: !Sub "${Application}"
+        - Key: Environment
+          Value: !Sub "${Environment}${LocalName}"
+
+  # The private IP address blocks for services within the VPC
+  Wafv2PrivateIpSet:
+    Type: AWS::WAFv2::IPSet
+    Properties:
+      Addresses:
+        - "10.0.0.0/16"
+      IPAddressVersion: IPV4
+      Scope: REGIONAL
+      Tags:
+        - Key: Name
+          Value: !Sub "${AWS::StackName}-Wafv2PrivateIpSet"
+        - Key: Service
+          Value: !Sub "${Application}"
+        - Key: Environment
+          Value: !Sub "${Environment}${LocalName}"
 
   LogAuditLogGroup:
     # checkov:skip=CKV_AWS_158:Ensure that CloudWatch Log Group is encrypted by KMS
