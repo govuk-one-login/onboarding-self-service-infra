@@ -207,7 +207,7 @@ Resources:
         OneLoginRepositoryName: !If [ FrontendRepositorySource, !Ref OneLoginRepositoryName, "none" ]
         TestImageRepositoryUri: !FindInMap [ TestImageRepository, !Ref Environment, name, { DefaultValue: "none" } ]
         TestReportFormat: "CUCUMBERJSON"
-        RunTestContainerInVPC: "False"
+        RunTestContainerInVPC: "True"
         AllowedAccounts: !Ref NextAccount
         IncludePromotion: !If [ PromotionEnabled, "Yes", "No" ]
         AccessLogsCustomBucketNameEnabled: "No"
