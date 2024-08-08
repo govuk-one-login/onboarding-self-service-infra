@@ -30,7 +30,7 @@ function get-all-downstream-accounts {
   local initial_account=$(get-initial-account "$name")
   local group=$(get-pipeline-group "$name")
   local format=${2:-"array"} # 'array' or 'string'
-  local downstream_accounts=$(jq -r --arg name "$initial_account" --arg group "$group" 'map(select((.name==$name|not) and .group==$group) | .name)' aws-accounts.json)
+  local downstream_accounts=$(jq -r --arg name "$initial_account" --arg group "$group" 'map(select((.name==$name|not) and .group==$group) | .account)' aws-accounts.json)
 
   local output=$([[ "$format" == string ]] && jq -r 'join(",")' <<< $downstream_accounts || jq -r '.[]' <<< $downstream_accounts)
 

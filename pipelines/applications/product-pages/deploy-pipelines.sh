@@ -31,12 +31,10 @@ function get-source-config {
     --profile $upstream_account_profile \
     --stack-name "$STACK_NAME" --query "Stacks[0].Outputs[]" 2> /dev/null)
 
-  frontend_source_bucket=$(get-param "$output_params" FrontendPromotionBucket)
+  frontend_source_bucket=$(get-param "$output_params" ProductPagesFrontendPromotionBucket)
 
   [[ -n "$output_params" ]] && [[ "$account" != "$INITIAL_ACCOUNT" ]] \
-    && source_event_trigger_role=$(get-param "$output_params" ArtifactPromotionBucketEventTriggerRoleArn) || source_event_trigger_role="none"
-
-  frontend_source_bucket_event_trigger_role=$(get-param "$output_params" FrontendPromotionBucketEventTriggerRoleArn)
+    && source_event_trigger_role=$(get-param "$output_params" ProductPagesFrontendPromotionBucketEventTriggerRoleArn) || source_event_trigger_role="none"
 }
 
 function get-promotion-config {
@@ -58,6 +56,7 @@ INITIAL_ACCOUNT=$(${ROOT_DIR}/scripts/aws.sh get-initial-account "$ACCOUNT")
 STACK_NAME=productpages-secure-pipelines
 
 [[ $ACCOUNT == "$INITIAL_ACCOUNT" ]] || get-source-config
+[[ $ACCOUNT == "$INITIAL_ACCOUNT" ]] && repo_name="onboarding-product-page"
 [[ $ACCOUNT == development ]] && ENV=dev || ENV=$ACCOUNT
 
 get-signing-config
@@ -69,10 +68,11 @@ ${ROOT_DIR}/scripts/deploy-sam-stack.sh "$@" \
   --template ${BASE_DIR}/deployment-pipelines.template.yml \
   --tags Product="GOV.UK One Login" System="Orchestration" Service="Product Pages" Owner="di-dfa-tech@digital.cabinet-office.gov.uk" Environment="$ENV" \
   --parameters Environment="$ENV" NextAccount="${downstream_accounts:-''}" \
-  SigningProfileARN="$signing_profile" \
-  SigningProfileVersionARN="$signing_profile_version" \
-  FrontendSourceBucketARN="${frontend_source_bucket:-none}" \
-  FrontendArtifactSourceBucketEventTriggerRoleArn="${frontend_source_bucket_event_trigger_role:-none}" \
+  OneLoginRepositoryName="${repo_name:-none}" \
+  SigningProfileARN="${signing_profile:-none}" \
+  SigningProfileVersionARN="${signing_profile_version:-none}" \
+  ProductPagesFrontendSourceBucketARN="${frontend_source_bucket:-none}" \
+  ProductPagesFrontendArtifactSourceBucketEventTriggerRoleArn="${source_event_trigger_role:-none}" \
   ContainerSigningKeyARN="${container_signing_key:-none}"
 
 if [[ $ACCOUNT == "$INITIAL_ACCOUNT" ]]; then

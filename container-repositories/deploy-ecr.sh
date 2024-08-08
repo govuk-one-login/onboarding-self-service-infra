@@ -19,7 +19,7 @@ EOF
 }
 
 # Set default values.
-PIPELINE_STACK="https://template-storage-templatebucket-1upzyw6v9cs42.s3.amazonaws.com/container-image-repository/template.yaml"
+PIPELINE_STACK="https://template-storage-templatebucket-1upzyw6v9cs42.s3.amazonaws.com/test-image-repository/template.yaml"
 SUPPORT_STACK_NAME="secure-pipelines-support"
 
 while [[ -n "${1:-}" ]]; do

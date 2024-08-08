@@ -45,7 +45,7 @@ Mappings:
     dev:
       name: "494650018671.dkr.ecr.eu-west-2.amazonaws.com/product-pages-secure-pipelines-test-image-repository-testrunnerimagerepository-luahu1qqkeqa"
     build:
-      name: "399055180839.dkr.ecr.eu-west-2.amazonaws.com/product-pages-secure-pipelines-test-image-repository-containerrepository-hvvw6cy4qare"
+      name: "399055180839.dkr.ecr.eu-west-2.amazonaws.com/product-pages-secure-pipelines-test-image-repository-testrunnerimagerepository-mn9ejrliowa1"
 
 Conditions:
   IsFinalAccount: !Not [ !Condition PromotionEnabled ]
@@ -85,7 +85,7 @@ Resources:
         IncludePromotion: !If [ PromotionEnabled, "Yes", "No" ]
         AccessLogsCustomBucketNameEnabled: "No"
         ProgrammaticPermissionsBoundary: "True"
-        PipelineEnvironmentNameEnabled: "Yes"
+        PipelineEnvironmentNameEnabled: "No"
         AllowedServiceOne: ECR & ECS
 
   ProductPagesFrontendECRRepository:
@@ -116,22 +116,22 @@ Resources:
 
 Outputs:
   # Promotion
-  ProducePagesFrontendPromotionBucket:
+  ProductPagesFrontendPromotionBucket:
     Condition: PromotionEnabled
     Value: !GetAtt ProductPagesFrontendDeployer.Outputs.ArtifactPromotionBucketArn
-  ProducePagesFrontendPromotionBucketEventTriggerRoleArn:
+  ProductPagesFrontendPromotionBucketEventTriggerRoleArn:
     Condition: PromotionEnabled
     Value: !GetAtt ProductPagesFrontendDeployer.Outputs.ArtifactPromotionBucketEventTriggerRoleArn
 
   # Deployment
-  ProducePagesFrontendDeploymentRoleArn:
+  ProductPagesFrontendDeploymentRoleArn:
     Condition: ProductPagesFrontendRepositorySource
     Value: !GetAtt ProductPagesFrontendDeployer.Outputs.GitHubActionsRoleArn
-  ProducePagesFrontendArtifactSourceBucketName:
+  ProductPagesFrontendArtifactSourceBucketName:
     Condition: ProductPagesFrontendRepositorySource
     Value: !GetAtt ProductPagesFrontendDeployer.Outputs.GitHubArtifactSourceBucketName
-  ProducePagesFrontendECRRepositoryName:
+  ProductPagesFrontendECRRepositoryName:
     Condition: ProductPagesFrontendRepositorySource
     Value: !GetAtt ProductPagesFrontendECRRepository.Outputs.ContainerRepositoryName
-  ProducePagesFrontendPipelineName:
+  ProductPagesFrontendPipelineName:
     Value: !GetAtt ProductPagesFrontendDeployer.Outputs.PipelineName

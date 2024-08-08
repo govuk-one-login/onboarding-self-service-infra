@@ -63,7 +63,7 @@ Mappings:
     dev:
       name: "494650018671.dkr.ecr.eu-west-2.amazonaws.com/self-service-secure-pipelines-test-image-repository-testrunnerimagerepository-weqqcrcei6k0"
     build:
-      name: "399055180839.dkr.ecr.eu-west-2.amazonaws.com/self-service-secure-pipelines-test-image-repository-containerrepository-vleztg1pvrte"
+      name: "399055180839.dkr.ecr.eu-west-2.amazonaws.com/self-service-secure-pipelines-test-image-repository-testrunnerimagerepository-5qbnc7ihhcgj"
 
 Conditions:
   IsFinalAccount: !Not [ !Condition PromotionEnabled ]
