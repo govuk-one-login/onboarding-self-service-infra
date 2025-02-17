@@ -1,0 +1,41 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directories:
+      - "/waf"
+      - "/monitoring/smoke-tests/src"
+      - "/monitoring/alert-notifications/src"
+    schedule:
+      interval: daily
+    labels:
+      - dependabot
+    commit-message:
+      prefix: "BAU"
+    versioning-strategy: increase
+    groups:
+      prod-dependencies:
+        applies-to: version-updates
+        dependency-type: "production"
+        update-types:
+          - "minor"
+          - "patch"
+      dev-dependencies:
+        applies-to: version-updates
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: daily
+    labels:
+      - actions
+      - dependabot
+    commit-message:
+      prefix: "BAU"
+    groups:
+      gha-dependencies:
+        applies-to: version-updates
+        patterns:
+          - "*"
