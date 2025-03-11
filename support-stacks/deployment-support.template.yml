@@ -32,6 +32,9 @@ Parameters:
   DeveloperNotificationsEmail:
     Type: AWS::SSM::Parameter::Value<String>
     Default: /self-service/secure-pipelines/developer-notification-email
+  SlackWorkspaceId:
+    Type: String
+    Default: "T8GT9416G"
 
 Mappings:
   Slack:
@@ -76,7 +79,7 @@ Resources:
     Properties:
       TemplateURL: !Sub ${TemplateStorageBucket}/build-notifications/template.yaml
       Parameters:
-        SlackWorkspaceId: T8GT9416G
+        SlackWorkspaceId: !Ref SlackWorkspaceId
         SlackChannelId: !FindInMap [ Slack, Channel, !Ref Environment, { DefaultValue: !FindInMap [ Slack, Channel, default ] } ]
 
   ECRScanningNotifications:
