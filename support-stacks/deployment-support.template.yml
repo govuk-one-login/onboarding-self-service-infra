@@ -82,6 +82,7 @@ Resources:
     Properties:
       TemplateURL: !Sub ${TemplateStorageBucket}/build-notifications/template.yaml
       Parameters:
+        CreateChatbotChannelConfiguration: "False"
         SlackWorkspaceId: !Ref SlackWorkspaceId
         SlackChannelId: !FindInMap [ Slack, Channel, !Ref Environment, { DefaultValue: !FindInMap [ Slack, Channel, default ] } ]
 
