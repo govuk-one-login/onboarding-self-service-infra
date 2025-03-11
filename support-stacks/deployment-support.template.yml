@@ -44,8 +44,8 @@ Mappings:
 
 Conditions:
   InitialAccount: !Equals [ !Ref InitialAccount, Yes ]
-  DevelopmentAccount: !Equals [ !Ref Environment, development ]
-  InitialProductionAccount: !And [ !Condition InitialAccount, !Not [ !Condition DevelopmentAccount ] ]
+  ProductionAccount: !Not [ !Equals [ !Ref Environment, development ] ]
+  InitialProductionAccount: !And [ !Condition InitialAccount, !Condition ProductionAccount ]
 
 Resources:
   GitHubIdentityProvider:
