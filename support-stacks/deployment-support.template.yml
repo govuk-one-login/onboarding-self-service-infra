@@ -7,6 +7,9 @@ Parameters:
   TemplateStorageBucket:
     Type: String
     Default: https://template-storage-templatebucket-1upzyw6v9cs42.s3.amazonaws.com
+  BackupTemplateStorageBucket:
+    Type: String
+    Default: https://backup-template-storage-templatebucket-747f3bzunrod.s3.eu-west-2.amazonaws.com
   ExportNamePrefix:
     Type: String
     Default: secure-pipelines
@@ -111,6 +114,14 @@ Resources:
     Properties:
       TemplateURL: !Sub ${TemplateStorageBucket}/api-gateway-logs/template.yaml
 
+  BackupVaultMonitoring:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub ${BackupTemplateStorageBucket}/backup-vault-monitoring/template.yaml
+      Parameters:
+        Environment: !If [ ProductionAccount, production, "non-prod" ]
+        DeployChatBot: "No"
+  
 Outputs:
   GitHubIdentityProviderARN:
     Condition: InitialProductionAccount
