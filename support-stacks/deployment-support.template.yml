@@ -123,6 +123,39 @@ Resources:
         Environment: !If [ ProductionAccount, production, "non-prod" ]
         DeployChatBot: "No"
   
+  ChatbotRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: "chatbot.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Tags:
+        - Key: Name
+          Value: !Join
+            - "-"
+            - - !Ref AWS::StackName
+              - "ChatbotRole"
+        - Key: Service
+          Value: "ci/cd"
+        - Key: Source
+          Value: "govuk-one-login/govuk-one-login/onboarding-self-service-infra/support-stacks/deployment-support.template.yml"
+
+  ChatbotChannelConfiguration:
+    Type: AWS::Chatbot::SlackChannelConfiguration
+    Properties:
+      ConfigurationName: !Sub "${AWS::StackName}-chatbot"
+      IamRoleArn: !GetAtt ChatbotRole.Arn
+      SlackWorkspaceId: !Ref SlackWorkspaceId
+      SlackChannelId: !FindInMap [ Slack, Channel, !Ref Environment, { DefaultValue: !FindInMap [ Slack, Channel, default ] } ]
+      SnsTopicArns:
+        - !GetAtt SlackNotifications.Outputs.BuildNotificationTopicArn
+        - !GetAtt BackupVaultMonitoring.Outputs.BackupNotificationTopicARN
+
 Outputs:
   GitHubIdentityProviderARN:
     Condition: InitialProductionAccount
