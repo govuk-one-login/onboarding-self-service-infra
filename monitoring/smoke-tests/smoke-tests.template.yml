@@ -68,7 +68,7 @@ Resources:
       Description: A lambda function that takes a Canary SNS message and sends it as an alert notification
       CodeUri: src
       Handler: send-alert.lambdaHandler
-      Runtime: nodejs18.x
+      Runtime: nodejs22.x
       LoggingConfig:
         LogGroup: !Ref LambdaLogsGroup
       Environment:
