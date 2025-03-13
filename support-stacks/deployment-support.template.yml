@@ -7,6 +7,9 @@ Parameters:
   TemplateStorageBucket:
     Type: String
     Default: https://template-storage-templatebucket-1upzyw6v9cs42.s3.amazonaws.com
+  BackupTemplateStorageBucket:
+    Type: String
+    Default: https://backup-template-storage-templatebucket-747f3bzunrod.s3.eu-west-2.amazonaws.com
   ExportNamePrefix:
     Type: String
     Default: secure-pipelines
@@ -32,6 +35,9 @@ Parameters:
   DeveloperNotificationsEmail:
     Type: AWS::SSM::Parameter::Value<String>
     Default: /self-service/secure-pipelines/developer-notification-email
+  SlackWorkspaceId:
+    Type: String
+    Default: "T8GT9416G"
 
 Mappings:
   Slack:
@@ -41,8 +47,8 @@ Mappings:
 
 Conditions:
   InitialAccount: !Equals [ !Ref InitialAccount, Yes ]
-  DevelopmentAccount: !Equals [ !Ref Environment, development ]
-  InitialProductionAccount: !And [ !Condition InitialAccount, !Not [ !Condition DevelopmentAccount ] ]
+  ProductionAccount: !Not [ !Equals [ !Ref Environment, development ] ]
+  InitialProductionAccount: !And [ !Condition InitialAccount, !Condition ProductionAccount ]
 
 Resources:
   GitHubIdentityProvider:
@@ -76,7 +82,8 @@ Resources:
     Properties:
       TemplateURL: !Sub ${TemplateStorageBucket}/build-notifications/template.yaml
       Parameters:
-        SlackWorkspaceId: T8GT9416G
+        CreateChatbotChannelConfiguration: "False"
+        SlackWorkspaceId: !Ref SlackWorkspaceId
         SlackChannelId: !FindInMap [ Slack, Channel, !Ref Environment, { DefaultValue: !FindInMap [ Slack, Channel, default ] } ]
 
   ECRScanningNotifications:
@@ -107,6 +114,47 @@ Resources:
     Type: AWS::CloudFormation::Stack
     Properties:
       TemplateURL: !Sub ${TemplateStorageBucket}/api-gateway-logs/template.yaml
+
+  BackupVaultMonitoring:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub ${BackupTemplateStorageBucket}/backup-vault-monitoring/template.yaml
+      Parameters:
+        Environment: !If [ ProductionAccount, production, "non-prod" ]
+        DeployChatBot: "No"
+  
+  ChatbotRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: "Allow"
+            Principal:
+              Service: "chatbot.amazonaws.com"
+            Action:
+              - "sts:AssumeRole"
+      Tags:
+        - Key: Name
+          Value: !Join
+            - "-"
+            - - !Ref AWS::StackName
+              - "ChatbotRole"
+        - Key: Service
+          Value: "ci/cd"
+        - Key: Source
+          Value: "govuk-one-login/govuk-one-login/onboarding-self-service-infra/support-stacks/deployment-support.template.yml"
+
+  ChatbotChannelConfiguration:
+    Type: AWS::Chatbot::SlackChannelConfiguration
+    Properties:
+      ConfigurationName: !Sub "${AWS::StackName}-chatbot"
+      IamRoleArn: !GetAtt ChatbotRole.Arn
+      SlackWorkspaceId: !Ref SlackWorkspaceId
+      SlackChannelId: !FindInMap [ Slack, Channel, !Ref Environment, { DefaultValue: !FindInMap [ Slack, Channel, default ] } ]
+      SnsTopicArns:
+        - !GetAtt SlackNotifications.Outputs.BuildNotificationTopicArn
+        - !GetAtt BackupVaultMonitoring.Outputs.BackupNotificationTopicARN
 
 Outputs:
   GitHubIdentityProviderARN:
