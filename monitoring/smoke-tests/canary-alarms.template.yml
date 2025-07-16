@@ -170,7 +170,7 @@ Resources:
       ExecutionRoleArn:
         Fn::ImportValue:
           !Sub "${SmokeStack}-canary-role"
-      RuntimeVersion: syn-nodejs-puppeteer-6.2
+      RuntimeVersion: syn-nodejs-puppeteer-10.0
       RunConfig:
         TimeoutInSeconds: 60
       Schedule:
@@ -340,7 +340,7 @@ Resources:
       ExecutionRoleArn:
         Fn::ImportValue:
           !Sub "${SmokeStack}-canary-role"
-      RuntimeVersion: syn-nodejs-puppeteer-6.2
+      RuntimeVersion: syn-nodejs-puppeteer-10.0
       RunConfig:
         TimeoutInSeconds: 60
       Schedule:
