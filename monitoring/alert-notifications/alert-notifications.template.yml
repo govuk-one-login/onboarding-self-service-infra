@@ -38,7 +38,6 @@ Conditions:
 
 Resources:
   AlertNotificationsSnsTopic:
-    # checkov:skip=CKV_AWS_26: "Ensure all data stored in the SNS topic is encrypted"
     Type: AWS::SNS::Topic
     Properties:
       DisplayName: Onboarding Monitoring Notifications
@@ -48,14 +47,79 @@ Resources:
           - Protocol: lambda
             Endpoint: !GetAtt SnsToSlackFunction.Arn
           - !Ref AWS::NoValue
+      KmsMasterKeyId: !GetAtt AlertNotificationsSnsTopicKey.Arn
+
+  AlertNotificationsSnsTopicKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/alertNotificationsSnsTopicKey
+      TargetKeyId: !Ref AlertNotificationsSnsTopicKey
+
+  AlertNotificationsSnsTopicKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: Key used to encrypt Alert notifications SNS topic
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: "*"
+          - Effect: Allow
+            Principal:
+              Service: events.amazonaws.com
+            Action: kms:*
+            Resource: "*"
 
   BackupAlertSnsTopic:
-    # checkov:skip=CKV_AWS_26: "Ensure all data stored in the SNS topic is encrypted"
     Type: AWS::SNS::Topic
     Properties:
       Subscription:
         - Protocol: email
           Endpoint: !Ref NotificationEmailAddress
+      KmsMasterKeyId: !GetAtt BackupAlertSnsTopicKey.Arn
+
+  BackupAlertSnsTopicKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/backupAlertSnsTopicKey
+      TargetKeyId: !Ref BackupAlertSnsTopicKey
+
+  BackupAlertSnsTopicKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: Key used to encrypt backup alerts SNS topic
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: "*"
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt SnsToSlackFunctionExecutionRole.Arn
+            Action: kms:*
+            Resource: "*"
+
+  BackupAlertSnsTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref BackupAlertSnsTopic
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action: sns:Publish
+            Effect: Allow
+            Resource: !Ref BackupAlertSnsTopic
+            Principal:
+              AWS: !GetAtt SnsToSlackFunctionExecutionRole.Arn
 
   SnsToSlackFunction:
     # checkov:skip=CKV_AWS_115: "Ensure that AWS Lambda function is configured for function-level concurrent execution limit"
@@ -76,9 +140,7 @@ Resources:
       DeadLetterQueue:
         Type: SNS
         TargetArn: !Ref BackupAlertSnsTopic
-      Policies:
-        - SNSPublishMessagePolicy:
-            TopicName: !GetAtt BackupAlertSnsTopic.TopicName
+      Role: !GetAtt SnsToSlackFunctionExecutionRole.Arn
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
@@ -91,6 +153,17 @@ Resources:
       FunctionName: !Ref SnsToSlackFunction
       Principal: sns.amazonaws.com
       SourceArn: !Ref AlertNotificationsSnsTopic
+
+  SnsToSlackFunctionExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: "lambda.amazonaws.com"
+            Action: "sts:AssumeRole"
 
   LambdaLogsGroup:
     # checkov:skip=CKV_AWS_158:Ensure that CloudWatch Log Group is encrypted by KMS
