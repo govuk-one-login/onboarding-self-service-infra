@@ -32,6 +32,11 @@ Outputs:
     Value: !Ref AlertNotificationsSnsTopic
     Export:
       Name: !Sub "${AWS::StackName}-sns-topic-arn"
+  SnsTopicKeyArn:
+    Description: The SNS topic key arn to encrypt and decrypt messages
+    Value: !GetAtt AlertNotificationsSnsTopicKey.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-sns-topic-key-arn"
 
 Conditions:
   IsAlerting: !Equals [true, !Ref EnableAlerting]
@@ -71,7 +76,9 @@ Resources:
           - Effect: Allow
             Principal:
               Service: events.amazonaws.com
-            Action: kms:*
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey*
             Resource: "*"
 
   BackupAlertSnsTopic:
@@ -104,7 +111,9 @@ Resources:
           - Effect: Allow
             Principal:
               AWS: !GetAtt SnsToSlackFunctionExecutionRole.Arn
-            Action: kms:*
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey*
             Resource: "*"
 
   BackupAlertSnsTopicPolicy:

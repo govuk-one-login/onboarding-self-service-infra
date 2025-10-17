@@ -48,7 +48,6 @@ Mappings:
 
 Resources:
   CanarySnsTopic:
-    # checkov:skip=CKV_AWS_26: "Ensure all data stored in the SNS topic is encrypted"
     Type: AWS::SNS::Topic
     Properties:
       DisplayName: Onboarding Smoke Test Heartbeat Checks
@@ -58,6 +57,55 @@ Resources:
           - Protocol: lambda
             Endpoint: !GetAtt CanarySnsNotificationFunction.Arn
           - !Ref AWS::NoValue
+      KmsMasterKeyId: !GetAtt CanarySnsTopicKey.Arn
+
+  CanarySnsTopicKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/canarySnsTopicKey
+      TargetKeyId: !Ref CanarySnsTopicKey
+
+  CanarySnsTopicKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: Key used to encrypt the canary SNS topic
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: "*"
+          - Effect: Allow
+            Principal:
+              AWS: !GetAtt CanarySnsNotificationFunctionExecutionRole.Arn
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey*
+            Resource: "*"
+          - Effect: Allow
+            Principal:
+              Service: cloudwatch.amazonaws.com
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey*
+            Resource: "*"
+
+  CanarySnsTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics:
+        - !Ref CanarySnsTopic
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Action: sns:Publish
+            Effect: Allow
+            Resource: !Ref CanarySnsTopic
+            Principal:
+              Service: cloudwatch.amazonaws.com
 
   CanarySnsNotificationFunction:
     # checkov:skip=CKV_AWS_115: "Ensure that AWS Lambda function is configured for function-level concurrent execution limit"
@@ -76,15 +124,53 @@ Resources:
           SNS_TOPIC_ARN:
             Fn::ImportValue:
               !Sub "${NotificationsStack}-sns-topic-arn"
-      Policies:
-        - SNSPublishMessagePolicy:
-            TopicName:
-              Fn::ImportValue:
-                !Sub "${NotificationsStack}-sns-topic-arn"
+      Role: !GetAtt CanarySnsNotificationFunctionExecutionRole.Arn
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
         EntryPoints: [ send-alert.ts ]
+
+  CanarySnsNotificationFunctionExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: LambdaLogsPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+            - Effect: Allow
+              Resource: !GetAtt LambdaLogsGroup.Arn
+              Action:
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+        - PolicyName: AlertNotificationsSnsTopicPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+            - Effect: Allow
+              Resource: 
+                Fn::ImportValue:
+                  !Sub "${NotificationsStack}-sns-topic-arn"
+              Action:
+              - sns:Publish
+        - PolicyName: AlertNotificationsKmsKeyPolicy
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+            - Effect: Allow
+              Resource: 
+                Fn::ImportValue:
+                  !Sub "${NotificationsStack}-sns-topic-key-arn"
+              Action: 
+              - "kms:Decrypt"
+              - "kms:GenerateDataKey*"
 
   CanarySnsToSlackFunctionPermission:
     Type: AWS::Lambda::Permission
