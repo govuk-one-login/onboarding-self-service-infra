@@ -113,7 +113,6 @@ Resources:
   CanaryResultsBucket:
     # checkov:skip=CKV_AWS_18: "Ensure the S3 bucket has access logging enabled"
     # checkov:skip=CKV_AWS_19: "Ensure the S3 bucket has server-side-encryption enabled"
-    # checkov:skip=CKV_AWS_21: "Ensure the S3 bucket has versioning enabled"
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !FindInMap [ Account, !Ref AWS::AccountId, canaryResultsBucket ]
@@ -127,6 +126,8 @@ Resources:
           - Id: RemoveOldObjects
             Status: Enabled
             ExpirationInDays: 7
+      VersioningConfiguration:
+        Status: Enabled
 
   CanaryLogGroup:
     # checkov:skip=CKV_AWS_158: "Ensure that CloudWatch Log Group is encrypted by KMS"
