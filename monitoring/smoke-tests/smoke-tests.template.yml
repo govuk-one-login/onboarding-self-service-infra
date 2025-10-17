@@ -239,6 +239,24 @@ Resources:
             Action: kms:*
             Resource: "*"
 
+  CanaryResultsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref CanaryResultsBucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: "EnforceSSLRequests"
+            Effect: "Deny"
+            Principal: "*"
+            Action: "s3:*"
+            Resource:
+              - !Sub "arn:aws:s3:::${CanaryResultsBucket}/*"
+              - !Sub "arn:aws:s3:::${CanaryResultsBucket}"
+            Condition:
+              Bool:
+                "aws:SecureTransport": "false"
+
   CanaryLogGroup:
     # checkov:skip=CKV_AWS_158: "Ensure that CloudWatch Log Group is encrypted by KMS"
     Type: AWS::Logs::LogGroup
