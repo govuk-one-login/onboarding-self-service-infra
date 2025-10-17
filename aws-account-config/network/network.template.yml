@@ -86,7 +86,6 @@ Resources:
 
   AccessLogsBucket:
     # checkov:skip=CKV_AWS_18:Ensure the S3 bucket has access logging enabled
-    # checkov:skip=CKV_AWS_21:Ensure the S3 bucket has versioning enabled
     Type: AWS::S3::Bucket
     Properties:
       BucketName: !Sub
@@ -97,6 +96,8 @@ Resources:
         BlockPublicPolicy: true
         IgnorePublicAcls: true
         RestrictPublicBuckets: true
+      VersioningConfiguration:
+        Status: Enabled
 
   # https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-access-logs.html
   AccessLogsBucketPolicy:
