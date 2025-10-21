@@ -98,6 +98,39 @@ Resources:
         RestrictPublicBuckets: true
       VersioningConfiguration:
         Status: Enabled
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: 'aws:kms'
+              KMSMasterKeyID: !GetAtt AccessLogsBucketKey.Arn
+
+  AccessLogsBucketKeyAlias:
+    Type: AWS::KMS::Alias
+    Properties:
+      AliasName: alias/accessLogsBucketKey
+      TargetKeyId: !Ref AccessLogsBucketKey
+
+  AccessLogsBucketKey:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: Key used to encrypt the access logs bucket
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: 2012-10-17
+        Statement:
+          - Effect: Allow
+            Principal:
+              AWS: !Sub arn:aws:iam::${AWS::AccountId}:root
+            Action: kms:*
+            Resource: "*"
+          - Effect: Allow
+            Principal:
+              AWS: !FindInMap [ ElasticLoadBalancer, !Ref AWS::Region, AccountID ]
+            Action:
+              - kms:Decrypt
+              - kms:GenerateDataKey*
+            Resource: "*"
+            
 
   # https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-access-logs.html
   AccessLogsBucketPolicy:
