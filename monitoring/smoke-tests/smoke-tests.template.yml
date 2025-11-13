@@ -109,7 +109,6 @@ Resources:
 
   CanarySnsNotificationFunction:
     # checkov:skip=CKV_AWS_115: "Ensure that AWS Lambda function is configured for function-level concurrent execution limit"
-    # checkov:skip=CKV_AWS_117: "Ensure that AWS Lambda function is configured inside a VPC"
     # checkov:skip=CKV_AWS_173: "Check encryption settings for Lambda environmental variable"
     Type: AWS::Serverless::Function
     Properties:
@@ -119,6 +118,10 @@ Resources:
       Runtime: nodejs22.x
       LoggingConfig:
         LogGroup: !Ref LambdaLogsGroup
+      VpcConfig:
+        SecurityGroupIds:
+          - Fn::ImportValue: VPC-VPCEndpointsSecurityGroup
+        SubnetIds: !Split [ ",", !ImportValue VPC-PrivateSubnets ]
       Environment:
         Variables:
           SNS_TOPIC_ARN:
@@ -171,6 +174,21 @@ Resources:
               Action: 
               - "kms:Decrypt"
               - "kms:GenerateDataKey*"
+        - PolicyName: VPCAccessPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - ec2:CreateNetworkInterface
+                  - ec2:DescribeNetworkInterfaces
+                  - ec2:DeleteNetworkInterface
+                  - ec2:AssignPrivateIpAddresses
+                  - ec2:UnassignPrivateIpAddresses
+                  - ec2:DescribeSecurityGroups
+                  - ec2:DescribeSubnets
+                  - ec2:DescribeVpcs
+                Resource: "*"
 
   CanarySnsToSlackFunctionPermission:
     Type: AWS::Lambda::Permission
