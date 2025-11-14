@@ -336,7 +336,7 @@ Resources:
             exports.handler = async () => {
                 return await loadBlueprint();
             };
-          - EndpointUrl: !FindInMap [ Account, !Ref AWS::AccountId, productPagesEndpoint ]
+          - EndpointUrl: !FindInMap [ Account, !Ref AWS::AccountId, selfServiceEndpoint ]
       ExecutionRoleArn:
         Fn::ImportValue:
           !Sub "${SmokeStack}-canary-role"
