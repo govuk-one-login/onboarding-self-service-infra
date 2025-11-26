@@ -7,6 +7,8 @@ updates:
       - "/monitoring/alert-notifications/src"
     schedule:
       interval: daily
+    cooldown:
+      default-days: 7
     labels:
       - dependabot
     commit-message:
@@ -29,6 +31,8 @@ updates:
     directory: /
     schedule:
       interval: daily
+    cooldown:
+      default-days: 7
     labels:
       - actions
       - dependabot
