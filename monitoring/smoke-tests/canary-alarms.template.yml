@@ -102,6 +102,11 @@ Resources:
                 });
             
                 let page = await synthetics.getPage();
+
+                let headers = {};
+                headers["test-header"] = '{{resolve:secretsmanager:/canary/smoke-test-header}}';
+
+                await page.setExtraHTTPHeaders(headers);
             
                 for (const url of urls) {
                     await loadUrl(page, url, takeScreenshot);
@@ -272,6 +277,11 @@ Resources:
                 });
             
                 let page = await synthetics.getPage();
+
+                let headers = {};
+                headers["test-header"] = '{{resolve:secretsmanager:/canary/smoke-test-header}}';
+
+                await page.setExtraHTTPHeaders(headers);
             
                 for (const url of urls) {
                     await loadUrl(page, url, takeScreenshot);
