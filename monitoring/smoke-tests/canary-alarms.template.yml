@@ -17,34 +17,33 @@ Mappings:
   Account:
     "494650018671": # Development account
       canarySuffix: dev-health
-      alarmSuffix: DevelopmentHealth
+      environment: Development
       productPagesEndpoint: 'https://development.sign-in.service.gov.uk/'
       selfServiceEndpoint: 'https://admin.development.sign-in.service.gov.uk/'
     "399055180839": # Build account
       canarySuffix: build-health
-      alarmSuffix: BuildHealth
+      environment: Build
       productPagesEndpoint: 'https://build.sign-in.service.gov.uk/'
       selfServiceEndpoint: 'https://admin.build.sign-in.service.gov.uk/'
     "325730373996": # Staging account
       canarySuffix: staging-health
-      alarmSuffix: StagingHealth
+      environment: Staging
       productPagesEndpoint: 'https://staging.sign-in.service.gov.uk/'
       selfServiceEndpoint: 'https://admin.staging.sign-in.service.gov.uk/'
     "663985455444": # Integration account, monitors production endpoints
       canarySuffix: prod-health
-      alarmSuffix: ProductionHealth
+      environment: Production
       productPagesEndpoint: 'https://www.sign-in.service.gov.uk/'
       selfServiceEndpoint: 'https://admin.sign-in.service.gov.uk/'
     "389946456390": # Production account, monitors integration endpoints
       canarySuffix: int-health
-      alarmSuffix: IntegrationHealth
+      environment: Integration
       productPagesEndpoint: 'https://integration.sign-in.service.gov.uk/'
       selfServiceEndpoint: 'https://admin.integration.sign-in.service.gov.uk/'
 
 Conditions:
   IsAlerting: !Equals [true, !Ref EnableAlerting]
 
-Resources:
   ## PRODUCT PAGES - HEALTH
   ProductPagesCanary:
     Type: AWS::Synthetics::Canary
@@ -183,8 +182,8 @@ Resources:
       # The alarm name is used by lambda to determine the sending origin
       # and should be changed with caution.
       AlarmName: !Sub
-        - OnboardingProductPages${AlarmSuffix}
-        - AlarmSuffix: !FindInMap [ Account, !Ref AWS::AccountId, alarmSuffix ]
+        - OnboardingProductPages${Environment}Health
+        - Environment: !FindInMap [ Account, !Ref AWS::AccountId, environment ]
       AlarmDescription: "Product page canary: 1 failure in the last 5 minutes"
       AlarmActions:
         - !If
@@ -353,8 +352,8 @@ Resources:
       # The alarm name is used by lambda to determine the sending origin
       # and should be changed with caution.
       AlarmName: !Sub
-        - OnboardingSelfService${AlarmSuffix}
-        - AlarmSuffix: !FindInMap [ Account, !Ref AWS::AccountId, alarmSuffix ]
+        - OnboardingSelfService${Environment}Health
+        - Environment: !FindInMap [ Account, !Ref AWS::AccountId, environment ]
       AlarmDescription: "Self-service canary: 1 failure in the last 5 minutes"
       AlarmActions:
         - !If
