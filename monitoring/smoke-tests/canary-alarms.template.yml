@@ -44,6 +44,16 @@ Mappings:
 Conditions:
   IsAlerting: !Equals [true, !Ref EnableAlerting]
 
+Resources:
+  CanaryTestHeaderParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: !Sub 
+        - "${Environment}-canary-test-header"
+        - Environment: !FindInMap [ Account, !Ref AWS::AccountId, environment ]
+      Type: String
+      Value: !Sub "{{resolve:secretsmanager:/canary/smoke-test-header}}"
+
   ## PRODUCT PAGES - HEALTH
   ProductPagesCanary:
     Type: AWS::Synthetics::Canary
