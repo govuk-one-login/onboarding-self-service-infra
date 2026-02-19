@@ -102,18 +102,20 @@ Resources:
         ServerSideEncryptionConfiguration:
           - ServerSideEncryptionByDefault:
               SSEAlgorithm: 'aws:kms'
-              KMSMasterKeyID: !GetAtt AccessLogsBucketKey.Arn
 
-  AccessLogsBucketKeyAlias:
-    Type: AWS::KMS::Alias
-    Properties:
-      AliasName: alias/accessLogsBucketKey
-      TargetKeyId: !Ref AccessLogsBucketKey
-
+  # We are keeping this key around as previously we used 
+  # it to encrypt the ALB access logs in the S3 bucket.
+  # AWS say that they only support S3 Managed keys for 
+  # encryption. To ensure we can continue to decrypt 
+  # previously written logs we can retain this key
+  # but switch back to using an S3 Managed key
   AccessLogsBucketKey:
     Type: AWS::KMS::Key
     Properties:
-      Description: Key used to encrypt the access logs bucket
+      Description: |
+        DEPRECATED - was previously used as the AccessLogsBucket encryption key, however
+        ALB access log buckets only support S3 Managed encryption keys, not customer managed
+        ones. This key is retained in case we need to decrypt historical logs
       EnableKeyRotation: true
       KeyPolicy:
         Version: 2012-10-17
