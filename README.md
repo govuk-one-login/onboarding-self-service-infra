@@ -8,11 +8,12 @@ To run this project you will need the following:
 
 - [aws sso](https://docs.aws.amazon.com/cli/latest/userguide/sso-configure-profile-token.html) - Configured to automatically retrieve authentication tokens
 - [SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/serverless-sam-cli-install.html) - Used to build and deploy the application
-- [Node.js](https://nodejs.org/en/) version 18 - Recommended way to install is via [NVM](https://github.com/nvm-sh/nvm)
+- [Node.js](https://nodejs.org/en/) version 24 - Recommended way to install is via [NVM](https://github.com/nvm-sh/nvm)
+    - You can run `nvm install` at the root of the repository to fetch the correct node version.
 
 ### Important
 
-- **Node version 18** is required since the runtimes for Lambda functions are fixed.
+- **Node version 24** is required since the runtimes for Lambda functions are fixed.
 
 ### Structure
 
