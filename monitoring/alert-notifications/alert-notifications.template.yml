@@ -139,7 +139,7 @@ Resources:
       Description: A lambda function that takes an SNS message and sends it to Slack
       CodeUri: src
       Handler: sns-to-slack.lambdaHandler
-      Runtime: nodejs22.x
+      Runtime: nodejs24.x
       LoggingConfig:
         LogGroup: !Ref LambdaLogsGroup
       Environment:
