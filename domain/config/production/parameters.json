@@ -13,8 +13,5 @@
     },
     {
         "StagingNameServers": "ns-501.awsdns-62.com,ns-1334.awsdns-38.org,ns-2022.awsdns-60.co.uk,ns-740.awsdns-28.net"
-    },
-    {
-        "Subdomain": ""
     }
 ]
