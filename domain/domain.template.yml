@@ -1,6 +1,12 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Self-Service DNS and domain configuration
 
+Metadata:
+  cfn-lint:
+    config:
+      ignore_checks:
+        - W1028 # Ignore unreachable Conditions - the template has always had this and would likely require a significant refactor to fix
+
 Parameters:
   Domain:
     Type: String
