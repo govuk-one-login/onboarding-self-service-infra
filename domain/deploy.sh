@@ -42,10 +42,7 @@ function deploy {
   ${ROOT_DIR}/scripts/deploy-sam-stack.sh "${@:2}" \
     --validate \
     --stack-name "$STACK_NAME" \
-    --template "${BASE_DIR}/domain.template.yml" \
-    --tags \
-        sse:stack-type=config \
-        sse:stack-role=dns
+    --template "${BASE_DIR}/domain.template.yml"
 }
 
 PARAMS=();
