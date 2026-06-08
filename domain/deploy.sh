@@ -4,21 +4,40 @@ BASE_DIR="$(dirname "${BASH_SOURCE[0]}")"
 ROOT_DIR="${BASE_DIR}/.."
 set -eu -o pipefail
 
-ACCOUNT=$(${ROOT_DIR}/scripts/aws.sh get-current-account-name)
+ENVIRONMENT="${1}"
 STACK_NAME="domain-config"
 
-function get-servers {
-  local account=$(${ROOT_DIR}/scripts/aws.sh get-account-number "${1:-}")
-  local AWS_PROFILE=$(${ROOT_DIR}/scripts/aws.sh get-account-profile "$account")
 
-  ${ROOT_DIR}/scripts/aws.sh get-stack-outputs domain-config HostedZoneNameServers
-}
+  PERMITTED_ENVIRONMENTS="dev development build staging integration production"
+  if ! [[ ${PERMITTED_ENVIRONMENTS} =~ ( |^)${ENVIRONMENT}( |$) ]]; then
+    echo "Environment provided: ${ENVIRONMENT} is not one of ${PERMITTED_ENVIRONMENTS}"
+    exit 1
+  fi
+
+case "$ENVIRONMENT" in
+  "dev"| "development")
+    ACCOUNT="di-onboarding-development"
+      ;;
+  "build")
+    ACCOUNT="di-onboarding-build"
+      ;;
+  "staging")
+    ACCOUNT="di-onboarding-staging"
+      ;;
+  "integration")
+    ACCOUNT="di-onboarding-integration"
+      ;;
+  "production")
+    ACCOUNT="di-onboarding-production"
+      ;;
+    *)
+    exit 1
+        ;;
+esac
 
 function deploy {
-  local account=$(${ROOT_DIR}/scripts/aws.sh get-account-number "${1:-}")
-  local AWS_PROFILE=$(${ROOT_DIR}/scripts/aws.sh get-account-profile "$account" "admin")
 
-  echo "Deploying the domain configuration to $account"
+  echo "Deploying the domain configuration to $ENVIRONMENT"
 
   ${ROOT_DIR}/scripts/deploy-sam-stack.sh "${@:2}" \
     --validate \
@@ -29,14 +48,12 @@ function deploy {
         sse:stack-role=dns
 }
 
-if [[ "$ACCOUNT" == production ]]; then
-  echo "Getting subdomain name servers..."
-  for account in development build staging integration; do
-    SERVERS=$(${ROOT_DIR}/scripts/aws.sh get-stack-outputs domain-config HostedZoneNameServers $account) || continue
-    PARAMS+=("${account@u}NameServers=$(jq --raw-output ".value" <<< "$SERVERS")")
-  done
-else
-  PARAMS=(Subdomain="$ACCOUNT.")
-fi
+PARAMS=();
+PARAMS_FILE="$(pwd)/config/${ENVIRONMENT}/parameters.json"
+mapfile -t PARAMS < <(jq -r '.[] | to_entries[] | "\(.key)=\(.value)"' ${PARAMS_FILE})
 
-deploy "$ACCOUNT" ${PARAMS:+--parameters ${PARAMS[@]}} "$@"
+TAGS_FILE="$(pwd)/config/tags.json"
+TAGS=();
+mapfile -t TAGS < <(jq -r '. | to_entries[] | "\(.key)=\(.value)"' ${TAGS_FILE})
+
+deploy "$ACCOUNT" ${PARAMS:+--parameters ${PARAMS[@]}} ${TAGS:+--tags ${TAGS[@]}} "${@:2}"

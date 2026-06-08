@@ -1,0 +1,6 @@
+{
+    "sse:application": "self-service",
+    "sse:deployment-source": "manual",
+    "sse:stack-role": "dns",
+    "sse:stack-type": "config"
+}

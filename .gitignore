@@ -129,3 +129,5 @@ test-report.html
 *.aws-sam/
 /.aws-sam/
 /xunit.xml
+
+!domain/config/build
