@@ -12,6 +12,6 @@
         "IntegrationNameServers": "ns-1450.awsdns-53.org,ns-997.awsdns-60.net,ns-1951.awsdns-51.co.uk,ns-57.awsdns-07.com"
     },
     {
-        "StagingNameServers": "ns-501.awsdns-62.com,ns-1334.awsdns-38.org,ns-2022.awsdns-60.co.uk,ns-740.awsdns-28.net"
+        "StagingNameServers": "ns-1385.awsdns-45.org,ns-367.awsdns-45.com,ns-539.awsdns-03.net,ns-1736.awsdns-25.co.uk"
     }
 ]
