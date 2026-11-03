@@ -56,7 +56,6 @@ The list of resources this template creates:
 |------------------|--------|
 | webAcl | AWS::WAFv2::WebACL |
 | cloudwatchLogsGroup | AWS::Logs::LogGroup |
-| CSLScloudwatchLogsGroup | AWS::Logs::SubscriptionFilter |
 | webAcllogging | AWS::WAFv2::LoggingConfiguration |
 | WafAclSSM | AWS::SSM::Parameter |
 | WAFLoggingKmsKey | AWS::KMS::Key |

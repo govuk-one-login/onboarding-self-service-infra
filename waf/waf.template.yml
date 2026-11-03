@@ -48,19 +48,6 @@ Conditions:
     - !Equals [!Ref Environment, integration]
     - !Equals [!Ref Environment, production]
 
-Mappings:
-  PlatformConfiguration:
-    development:
-      clslDestinationArn: arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2
-    build:
-      clslDestinationArn: arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2
-    staging:
-      clslDestinationArn: arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2
-    integration:
-      clslDestinationArn: arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2
-    production:
-      clslDestinationArn: arn:aws:logs:eu-west-2:885513274347:destination:csls_cw_logs_destination_prodpython-2
-
 Outputs:
   OnboardingWebAclArn:
     Description: ARN of WebACL
@@ -388,14 +375,6 @@ Resources:
             Operation:
               Deidentify:
                 MaskConfig: { }
-
-  CslsSubscriptionFilter:
-    Type: AWS::Logs::SubscriptionFilter
-    Properties:
-      LogGroupName: !Ref CloudwatchLogsGroup
-      FilterName: !Sub "WAF logs for ${Application} ${Environment}${LocalName}"
-      FilterPattern: ""
-      DestinationArn: !FindInMap [ PlatformConfiguration, !Ref Environment, clslDestinationArn ]
 
   WebAclLogging:
     Type: AWS::WAFv2::LoggingConfiguration
